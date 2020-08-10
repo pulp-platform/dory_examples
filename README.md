@@ -59,8 +59,10 @@ Execute the following commands to generate the files and test a network on gvsoc
 ```
 python3 network_generate.py
 cd application
-make clean all run CORE=1 platform=gvsoc
+make clean all run CORE=8 platform=gvsoc
 ```
+
+The variable **CORE** define the number of the cores of the cluster used for parallelization. The default is 8 (the maximum number of cores inside the cluster of GAP8).
 
 Some examples of files generation networks:
 

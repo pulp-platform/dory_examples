@@ -227,30 +227,29 @@
  /home/burry94/gap_sdk/install/GAP8_V2/include/bench/bench.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/rt/rt_compat.h \
  DORY_network/inc/dory.h DORY_network/inc/mchan_test.h \
+ DORY_network/inc/layerAveragePoolRelu27.h DORY_network/inc/dory.h \
+ DORY_network/inc/layerConvBNRelu0.h DORY_network/inc/layerConvBNRelu6.h \
  DORY_network/inc/layerConvBNRelu24L3.h \
- DORY_network/inc/layerConvBNRelu24.h DORY_network/inc/dory.h \
- DORY_network/inc/layerConvDWBNRelu3.h \
- DORY_network/inc/layerConvBNRelu26L3.h \
- DORY_network/inc/layerConvBNRelu26.h \
- DORY_network/inc/layerGemm28_lastL3.h \
- DORY_network/inc/layerGemm28_last.h DORY_network/inc/layerConvBNRelu10.h \
- DORY_network/inc/layerConvDWBNRelu9.h \
+ DORY_network/inc/layerConvBNRelu24.h DORY_network/inc/layerConvBNRelu8.h \
  DORY_network/inc/layerConvBNRelu14L3.h \
  DORY_network/inc/layerConvBNRelu14.h \
- DORY_network/inc/layerAveragePoolRelu27.h \
- DORY_network/inc/layerConvBNRelu12.h \
  DORY_network/inc/layerConvDWBNRelu13.h \
- DORY_network/inc/layerConvBNRelu2.h \
- DORY_network/inc/layerConvDWBNRelu7.h \
- DORY_network/inc/layerConvDWBNRelu23.h \
- DORY_network/inc/layerConvBNRelu8.h \
- DORY_network/inc/layerConvDWBNRelu1.h \
- DORY_network/inc/layerConvBNRelu6.h \
  DORY_network/inc/layerConvDWBNRelu25.h \
- DORY_network/inc/layerConvBNRelu0.h \
+ DORY_network/inc/layerConvBNRelu10.h \
+ DORY_network/inc/layerConvBNRelu26L3.h \
+ DORY_network/inc/layerConvBNRelu26.h \
  DORY_network/inc/layerConvDWBNRelu11.h \
- DORY_network/inc/layerConvDWBNRelu5.h \
+ DORY_network/inc/layerConvBNRelu2.h \
+ DORY_network/inc/layerConvDWBNRelu3.h \
+ DORY_network/inc/layerConvDWBNRelu23.h \
+ DORY_network/inc/layerConvDWBNRelu7.h \
+ DORY_network/inc/layerConvDWBNRelu9.h \
+ DORY_network/inc/layerConvDWBNRelu1.h \
  DORY_network/inc/layerConvBNRelu4.h \
+ DORY_network/inc/layerGemm28_lastL3.h \
+ DORY_network/inc/layerGemm28_last.h \
+ DORY_network/inc/layerConvDWBNRelu5.h \
+ DORY_network/inc/layerConvBNRelu12.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/bsp/fs.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/bsp/fs/readfs.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/bsp/flash.h \
@@ -716,57 +715,57 @@ DORY_network/inc/dory.h:
 
 DORY_network/inc/mchan_test.h:
 
+DORY_network/inc/layerAveragePoolRelu27.h:
+
+DORY_network/inc/dory.h:
+
+DORY_network/inc/layerConvBNRelu0.h:
+
+DORY_network/inc/layerConvBNRelu6.h:
+
 DORY_network/inc/layerConvBNRelu24L3.h:
 
 DORY_network/inc/layerConvBNRelu24.h:
 
-DORY_network/inc/dory.h:
-
-DORY_network/inc/layerConvDWBNRelu3.h:
-
-DORY_network/inc/layerConvBNRelu26L3.h:
-
-DORY_network/inc/layerConvBNRelu26.h:
-
-DORY_network/inc/layerGemm28_lastL3.h:
-
-DORY_network/inc/layerGemm28_last.h:
-
-DORY_network/inc/layerConvBNRelu10.h:
-
-DORY_network/inc/layerConvDWBNRelu9.h:
+DORY_network/inc/layerConvBNRelu8.h:
 
 DORY_network/inc/layerConvBNRelu14L3.h:
 
 DORY_network/inc/layerConvBNRelu14.h:
 
-DORY_network/inc/layerAveragePoolRelu27.h:
-
-DORY_network/inc/layerConvBNRelu12.h:
-
 DORY_network/inc/layerConvDWBNRelu13.h:
-
-DORY_network/inc/layerConvBNRelu2.h:
-
-DORY_network/inc/layerConvDWBNRelu7.h:
-
-DORY_network/inc/layerConvDWBNRelu23.h:
-
-DORY_network/inc/layerConvBNRelu8.h:
-
-DORY_network/inc/layerConvDWBNRelu1.h:
-
-DORY_network/inc/layerConvBNRelu6.h:
 
 DORY_network/inc/layerConvDWBNRelu25.h:
 
-DORY_network/inc/layerConvBNRelu0.h:
+DORY_network/inc/layerConvBNRelu10.h:
+
+DORY_network/inc/layerConvBNRelu26L3.h:
+
+DORY_network/inc/layerConvBNRelu26.h:
 
 DORY_network/inc/layerConvDWBNRelu11.h:
 
-DORY_network/inc/layerConvDWBNRelu5.h:
+DORY_network/inc/layerConvBNRelu2.h:
+
+DORY_network/inc/layerConvDWBNRelu3.h:
+
+DORY_network/inc/layerConvDWBNRelu23.h:
+
+DORY_network/inc/layerConvDWBNRelu7.h:
+
+DORY_network/inc/layerConvDWBNRelu9.h:
+
+DORY_network/inc/layerConvDWBNRelu1.h:
 
 DORY_network/inc/layerConvBNRelu4.h:
+
+DORY_network/inc/layerGemm28_lastL3.h:
+
+DORY_network/inc/layerGemm28_last.h:
+
+DORY_network/inc/layerConvDWBNRelu5.h:
+
+DORY_network/inc/layerConvBNRelu12.h:
 
 /home/burry94/gap_sdk/install/GAP8_V2/include/bsp/fs.h:
 

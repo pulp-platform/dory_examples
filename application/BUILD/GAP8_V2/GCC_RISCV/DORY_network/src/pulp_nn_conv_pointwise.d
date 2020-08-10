@@ -226,7 +226,7 @@
  /home/burry94/gap_sdk/install/GAP8_V2/include/rt/rt_api.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/bench/bench.h \
  /home/burry94/gap_sdk/install/GAP8_V2/include/rt/rt_compat.h \
- DORY_network/inc/kernels.h DORY_network/inc/mchan_test.h
+ DORY_network/inc/pulp_nn_kernels.h DORY_network/inc/mchan_test.h
 
 /home/burry94/gap_sdk/install/GAP8_V2/include/rt/chips/gap_rev1/config.h:
 
@@ -680,6 +680,6 @@ DORY_network/inc/pulp_nn_utils.h:
 
 /home/burry94/gap_sdk/install/GAP8_V2/include/rt/rt_compat.h:
 
-DORY_network/inc/kernels.h:
+DORY_network/inc/pulp_nn_kernels.h:
 
 DORY_network/inc/mchan_test.h:
