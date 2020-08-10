@@ -34,7 +34,6 @@ def main():
     parser.add_argument('--Bn_Relu_Bits', type=int, default = 32, help = 'Number of bits for Relu/BN')
     parser.add_argument('--perf_layer', default = 'No', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
     parser.add_argument('--verbose_level', default = 'Last+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
-    parser.add_argument('--Mobilenet_correction',  type=int, default = 1, help = '1 for /Test_suite_DORY/MobilenetV1/, 0 otherwise')
     parser.add_argument('--chip', default = 'GAP8v3', help = 'GAP8v2 for fixing DMA issue. GAP8v3 otherise')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
@@ -55,7 +54,6 @@ def main():
                             100,
                             args.verbose_level,
                             args.perf_layer,
-                            args.Mobilenet_correction,
                             args.l1_buffer_size,
                             args.master_stack,
                             args.slave_stack,
