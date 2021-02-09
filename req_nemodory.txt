@@ -1,0 +1,15 @@
+MODEL REQUIREMENTS FOR NEMO EXPORT & DORY USAGE
+
+NEMO:
+- channels must be multiple of 4 (even 1, 2, and 3 are wrong)
+- linear layers (Conv and FC) must have no bias: bias=False
+- conv-bn-relu
+- BatchNorms must not be folded
+- quantization must be 8-bit for activations, and 7-bit for weights (due to asymmetry)
+- the model to be exported is the Integer Deployable (ID)
+- input & activations must be exported from ID model via the function nemo.utils.get_intermediate_activations,
+  NOT via nemo.utils.get_integer_activations
+
+DORY
+- if "--Bn_Relu_Bits 32" (default) does not work, try also "--Bn_Relu_Bits 64"
+- currently, checksums on weights using L3 fail even if the model is correct
