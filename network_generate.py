@@ -16,15 +16,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dory.ONNX_management import ONNX_management as onnx_m
-from dory.Model_deployment import Model_deployment as model_deploy
+import sys
+sys.path.append('../')
+from ONNX_management import ONNX_management as onnx_m
+from Model_deployment import Model_deployment as model_deploy
 import os
 import argparse
 from argparse import RawTextHelpFormatter
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--network_dir', default = "./Test_suite_DORY/MobilenetV1/", help = 'directory of the onnx file of the network')
+    parser.add_argument('--network_dir', default = "./examples/MobilenetV1/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
     parser.add_argument('--master_stack', type=int, default = 4096, help = 'Cluster Core 0 stack')
@@ -48,9 +50,7 @@ def main():
             for sub_files in files:
                 if 'onnx' in files:
                     net = files
-    # precision_dict = [4, 4, 4, 8, 2, 2, 4, 8, 8, 8, 4, 4, 2, 2, 2, 8, 8, 4, 8, 8, 2, 2, 8, 4, 8, 4, 8, 8]
-    # precision_dict = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8]
-    # precision_dict = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 8, 8]
+    precision_dict = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8]
     PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
@@ -67,8 +67,9 @@ def main():
                             args.cl_frequency,
                             8, 8, 8, args.Bn_Relu_Bits, 
                             args.sdk,
-                            args.dma_parallelization,args.optional)
-                            #,precision_dict)
+                            args.dma_parallelization,args.
+                            optional,
+                            precision_dict)
 
 if __name__ == '__main__':
     main()
