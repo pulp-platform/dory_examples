@@ -1,7 +1,6 @@
 python3 network_generate.py --Mobilenet_correction 1
-python3 network_generate.py --network_dir './Test_suite_DORY/PenguiNet_64/' --Bn_Relu_Bits 64
-python3 network_generate.py --network_dir './Under_test_DORY/Residual_connection_test_1/' --Bn_Relu_Bits 32 --verbose_level 'Check_all+Perf_final'
-python3 network_generate.py --network_dir './Under_test_DORY/Residual_connection_test_2/' --Bn_Relu_Bits 32 --verbose_level 'Check_all+Perf_final'
-python3 network_generate.py --network_dir './Under_test_DORY/dronet_full/' --Bn_Relu_Bits 64 --verbose_level 'Check_all+Perf_final' --l2_buffer_size 420000
-python3 network_generate.py --network_dir './Under_test_DORY/dronet_complete/' --Bn_Relu_Bits 64 --verbose_level 'Check_all+Perf_final' --l2_buffer_size 420000
-python3 network_generate.py --network_dir './Under_test_DORY/conv1d/' --Bn_Relu_Bits 64 --verbose_level 'Check_all+Perf_final' --optional '1D_Conv'
+python3 network_generate.py --network_dir './examples/PenguiNet_64/' --Bn_Relu_Bits 64
+python3 network_generate.py --network_dir './examples/Residual_connection_test_1/' --Bn_Relu_Bits 32 --verbose_level 'Check_all+Perf_final'
+python3 network_generate.py --network_dir './examples/Residual_connection_test_2/' --Bn_Relu_Bits 32 --verbose_level 'Check_all+Perf_final'
+python3 network_generate.py --network_dir './examples/dronet_complete/' --Bn_Relu_Bits 64 --verbose_level 'Check_all+Perf_final' --l2_buffer_size 420000
+python3 network_generate.py --network_dir './examples/conv1d/' --Bn_Relu_Bits 64 --verbose_level 'Check_all+Perf_final' --optional '1D_Conv'
