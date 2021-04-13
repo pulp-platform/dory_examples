@@ -3,7 +3,7 @@
 # gap_sdk
 # Total time: 7.19 min on laptop
 
-echo "Test last data: 06/04/2021"
+echo "Test last data: 13/04/2021"
 
 echo "8 bits 2D conv-network test - noHoWO model"
 rm -rf network_tested
