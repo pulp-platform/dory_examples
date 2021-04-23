@@ -23,10 +23,11 @@ from Model_deployment import Model_deployment as model_deploy
 import os
 import argparse
 from argparse import RawTextHelpFormatter
+import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--network_dir', default = "./examples/MobilenetV1/", help = 'directory of the onnx file of the network')
+    parser.add_argument('--network_dir', default = "./examples/8-bits-2D/MobilenetV1/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
     parser.add_argument('--master_stack', type=int, default = 4096, help = 'Cluster Core 0 stack')
@@ -39,7 +40,7 @@ def main():
     parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--optional', default = '8bit', help = '8bit, mixed, 1D_Conv')
+    parser.add_argument('--optional', default = '8bit', help = '8bit, mixed-sw, mixed-hw, 1D_Conv')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -49,7 +50,26 @@ def main():
             for sub_files in files:
                 if 'onnx' in files:
                     net = files
-    precision_dict = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8]
+    precision_dict_act     = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8]
+    # precision_dict_weights = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    # precision_dict_act     = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    # precision_dict_weights = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+    # if 'mixed' in args.optional: ### works only for MV1
+    #     precision_dict_act     = []
+    #     precision_dict_weights = []
+    #     quant = args.network_dir.split('/')[3].split('_')
+    #     precision_dict_act.append(int(quant[1][-2]))
+    #     precision_dict_weights.append(int(quant[1][-4]))
+    #     for i in np.arange(13):
+    #         precision_dict_act.append(int(quant[3][-1]))
+    #         precision_dict_act.append(int(quant[4][-2]))
+    #         precision_dict_weights.append(int(quant[3][-3]))
+    #         precision_dict_weights.append(int(quant[4][-4]))
+    #     precision_dict_act.append(int(quant[4][-2]))
+    #     precision_dict_act.append(32)
+    #     precision_dict_weights.append(int(quant[4][-4]))
+    #     precision_dict_weights.append(int(quant[2][-2]))
     PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
@@ -67,7 +87,8 @@ def main():
                             args.sdk,
                             args.dma_parallelization,args.
                             optional,
-                            precision_dict)
+                            precision_dict_act,
+                            precision_dict_weights)
 
 if __name__ == '__main__':
     main()
