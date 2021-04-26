@@ -3,7 +3,7 @@
 # gap_sdk
 # Total time: 7.19 min on laptop
 
-echo "Test last data: 23/04/2021"
+echo "Test last data: 26/04/2021"
 
 echo "8 bits 2D conv-network test"
 rm -rf network_tested
@@ -14,12 +14,12 @@ python3 network_generate.py --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/MobilenetV1.txt
 grep -FR 'Checksum final :' ./network_tested/MobilenetV1.txt 
 
-echo "PenguiNet_32 MAC/cycle: 4.879575"
+echo "PenguiNet_32 MAC/cycle: 4.875062"
 python3 network_generate.py --network_dir './examples/8-bits-2D/PenguiNet_32/' --Bn_Relu_Bits 32 --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/PenguiNet_32.txt
 grep -FR 'Checksum final :' ./network_tested/PenguiNet_32.txt 
 
-echo "PenguiNet_64 MAC/cycle: 4.056388"
+echo "PenguiNet_64 MAC/cycle: 4.058853"
 python3 network_generate.py --network_dir './examples/8-bits-2D/PenguiNet_64/' --Bn_Relu_Bits 64 --sdk gap_sdk 
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/PenguiNet_64.txt
 grep -FR 'Checksum final :' ./network_tested/PenguiNet_64.txt 
@@ -69,7 +69,7 @@ python3 network_generate.py --network_dir './examples/8-bits-2D/SmartAgri-net/' 
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/SmartAgri-net.txt
 grep -FR 'Checksum final :' ./network_tested/SmartAgri-net.txt 
 
-echo "MobilenetV2 --checksums not working MAC/cycle: 4.194616"
+echo "MobilenetV2 --checksums not working MAC/cycle: 4.192413"
 python3 network_generate.py --network_dir './examples/8-bits-2D/MobilenetV2/' --Bn_Relu_Bits 64 --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/MobilenetV2.txt
 grep -FR 'Checksum final :' ./network_tested/MobilenetV2.txt 
@@ -80,7 +80,20 @@ make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/ds
 grep -FR 'Checksum final :' ./network_tested/dscnn_test.txt 
 
 ####### 1D networks ######
-#### TO DO
 
-# TCN_Full
-# TCN_test_library
+echo "TCN_T MAC/cycle: 4.291659"
+python3 network_generate.py --network_dir examples/8-bits-1D/TCN_T/ --Bn_Relu_Bits 64 --sdk gap_sdk --optional 1D_Conv
+make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/TCN_T.txt
+grep -FR 'Checksum final :' ./network_tested/TCN_T.txt 
+
+echo "TCN_test_library MAC/cycle: 8.815123"
+python3 network_generate.py --network_dir examples/8-bits-1D/TCN_test_library/ --Bn_Relu_Bits 64 --sdk gap_sdk --optional 1D_Conv
+make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/TCN_test_library.txt
+grep -FR 'Checksum final :' ./network_tested/TCN_test_library.txt 
+
+####### mixed-precision networks ######
+
+echo "MobilenetV1_4bits MAC/cycle: 6.366008"
+python3 network_generate.py --network_dir examples/mixed-2D/MobilenetV1_4bits/ --Bn_Relu_Bits 64 --optional mixed-sw --sdk gap_sdk
+make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/MobilenetV1_4bits.txt
+grep -FR 'Checksum final :' ./network_tested/MobilenetV1_4bits.txt 
