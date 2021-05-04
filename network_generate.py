@@ -54,23 +54,27 @@ def main():
         precision_dict_act     = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
         precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
     else:
-        precision_dict_act     = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8]
-        precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
-    # if 'mixed' in args.optional: ### works only for MV1
-    #     precision_dict_act     = []
-    #     precision_dict_weights = []
-    #     quant = args.network_dir.split('/')[3].split('_')
-    #     precision_dict_act.append(int(quant[1][-2]))
-    #     precision_dict_weights.append(int(quant[1][-4]))
-    #     for i in np.arange(13):
-    #         precision_dict_act.append(int(quant[3][-1]))
-    #         precision_dict_act.append(int(quant[4][-2]))
-    #         precision_dict_weights.append(int(quant[3][-3]))
-    #         precision_dict_weights.append(int(quant[4][-4]))
-    #     precision_dict_act.append(int(quant[4][-2]))
-    #     precision_dict_act.append(32)
-    #     precision_dict_weights.append(int(quant[4][-4]))
-    #     precision_dict_weights.append(int(quant[2][-2]))
+        # precision_dict_act     = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+        precision_dict_act     = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        # precision_dict_weights = [8, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 8]
+        # precision_dict_act     = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+        # precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+        precision_dict_weights = [8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8]
+    if 'mixed' in args.optional: ### works only for MV1
+        precision_dict_act     = []
+        precision_dict_weights = []
+        quant = args.network_dir.split('/')[3].split('_')
+        precision_dict_act.append(int(quant[1][-2]))
+        precision_dict_weights.append(int(quant[1][-4]))
+        for i in np.arange(13):
+            precision_dict_act.append(int(quant[3][-1]))
+            precision_dict_act.append(int(quant[4][-2]))
+            precision_dict_weights.append(int(quant[3][-3]))
+            precision_dict_weights.append(int(quant[4][-4]))
+        precision_dict_act.append(int(quant[4][-2]))
+        precision_dict_act.append(32)
+        precision_dict_weights.append(int(quant[4][-4]))
+        precision_dict_weights.append(int(quant[2][-2]))
     PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
