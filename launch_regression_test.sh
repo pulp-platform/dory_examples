@@ -3,7 +3,7 @@
 # gap_sdk
 # Total time: 7.19 min on laptop
 
-echo "Test last data: 26/04/2021"
+echo "Test last data: 05/05/2021"
 
 echo "8 bits 2D conv-network test"
 rm -rf network_tested
@@ -69,8 +69,8 @@ python3 network_generate.py --network_dir './examples/8-bits-2D/SmartAgri-net/' 
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/SmartAgri-net.txt
 grep -FR 'Checksum final :' ./network_tested/SmartAgri-net.txt 
 
-echo "MobilenetV2 --checksums not working MAC/cycle: 4.192413"
-python3 network_generate.py --network_dir './examples/8-bits-2D/MobilenetV2/' --Bn_Relu_Bits 64 --sdk gap_sdk
+echo "MobilenetV2 MAC/cycle: 4.192413"
+python3 network_generate.py --network_dir './examples/8-bits-2D/MV2-128/' --Bn_Relu_Bits 64 --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/MobilenetV2.txt
 grep -FR 'Checksum final :' ./network_tested/MobilenetV2.txt 
 

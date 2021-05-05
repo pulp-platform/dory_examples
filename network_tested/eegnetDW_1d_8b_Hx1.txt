@@ -33,18 +33,18 @@ gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/
 gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu0_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvDWBNRelu1_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu3_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMulBNRelu5_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMul6_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/inputs.hex   run --flash --binary=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV/main 
 gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu0_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvDWBNRelu1_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu3_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMulBNRelu5_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMul6_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/inputs.hex   run --exec-prepare --exec --binary=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV/main 
 
-L3 Buffer alloc initial	@ 3388608:	Ok
+L3 Buffer alloc initial	@ 3588608:	Ok
 
-L3 Buffer alloc initial	@ 2388608:	Ok
+L3 Buffer alloc initial	@ 2088608:	Ok
 
-L3 Buffer alloc initial	@ 1388608:	Ok
+L3 Buffer alloc initial	@ 588608:	Ok
 Layer 0  : Checksum = 59359       , FLASH 59359       , Check OK
 Layer 1  : Checksum = 6169        , FLASH 6169        , Check OK
 Layer 3  : Checksum = 11587       , FLASH 11587       , Check OK
 Layer 5  : Checksum = 284924      , FLASH 284924      , Check OK
 Layer 6  : Checksum = 3644        , FLASH 3644        , Check OK
 
-L2 Buffer alloc initial	@ 0x1c00df28:	Ok
+L2 Buffer alloc initial	@ 0x1c00df10:	Ok
 L1 Buffer alloc initial	@ 0x10006420:	Ok
 
 Checksum in/out Layer :	Ok
@@ -69,8 +69,8 @@ Checksum in/out Layer :	Ok
 Layer 6 ended 
 Checksum final :	Ok
 
-[0] : num_cycles: 87022
+[0] : num_cycles: 87521
 [0] : MACs: 219168
-[0] : MAC/cycle: 2.518536
+[0] : MAC/cycle: 2.504176
 [0] : n. of Cores: 8
 make: Leaving directory '/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application'

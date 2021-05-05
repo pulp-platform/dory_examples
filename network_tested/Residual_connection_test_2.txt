@@ -33,11 +33,11 @@ gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/
 gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu0_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu1_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu2_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu3_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu4_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu5_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu7_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMul8_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/inputs.hex   run --flash --binary=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV/main 
 gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu0_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu1_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu2_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu3_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu4_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu5_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/ConvBNRelu7_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/MatMul8_weights.hex  --config-opt=flash/content/partitions/readfs/files=DORY_network/inputs.hex   run --exec-prepare --exec --binary=/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application/BUILD/GAP8_V2/GCC_RISCV/main 
 
-L3 Buffer alloc initial	@ 3388608:	Ok
+L3 Buffer alloc initial	@ 3588608:	Ok
 
-L3 Buffer alloc initial	@ 2388608:	Ok
+L3 Buffer alloc initial	@ 2088608:	Ok
 
-L3 Buffer alloc initial	@ 1388608:	Ok
+L3 Buffer alloc initial	@ 588608:	Ok
 Layer 0  : Checksum = 73177       , FLASH 73177       , Check OK
 Layer 1  : Checksum = 311650      , FLASH 311650      , Check OK
 Layer 2  : Checksum = 312749      , FLASH 312749      , Check OK

@@ -27,7 +27,7 @@ import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--network_dir', default = "./examples/8-bits-2D/MobilenetV1/", help = 'directory of the onnx file of the network')
+    parser.add_argument('--network_dir', default = "./examples/8-bits-2D/MV1-128/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
     parser.add_argument('--master_stack', type=int, default = 4096, help = 'Cluster Core 0 stack')
