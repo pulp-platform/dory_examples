@@ -35,42 +35,42 @@ gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/
 
 L3 Buffer alloc initial	@ 3588608:	Ok
 
-L3 Buffer alloc initial	@ 2088608:	Ok
+L3 Buffer alloc initial	@ 2588608:	Ok
 
-L3 Buffer alloc initial	@ 588608:	Ok
+L3 Buffer alloc initial	@ 1588608:	Ok
 Layer 0  : Checksum = 57306       , FLASH 57306       , Check OK
 Layer 1  : Checksum = 11599       , FLASH 11599       , Check OK
 Layer 3  : Checksum = 12695       , FLASH 12695       , Check OK
 Layer 5  : Checksum = 276999      , FLASH 276999      , Check OK
 Layer 6  : Checksum = 4396        , FLASH 4396        , Check OK
 
-L2 Buffer alloc initial	@ 0x1c00da98:	Ok
+L2 Buffer alloc initial	@ 0x1c00db20:	Ok
 L1 Buffer alloc initial	@ 0x10006420:	Ok
 
 Checksum in/out Layer :	Ok
-Layer 0 ended 
+Layer ConvBNRelu 0 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 1 ended 
+Layer ConvBNRelu 1 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 2 ended 
+Layer MaxPool 2 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 3 ended 
+Layer ConvBNRelu 3 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 4 ended 
+Layer MaxPool 4 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 5 ended 
+Layer MatMulBNRelu 5 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 6 ended 
+Layer MatMul 6 ended: 
 Checksum final :	Ok
 
-[0] : num_cycles: 469859
+[0] : num_cycles: 469339
 [0] : MACs: 237600
-[0] : MAC/cycle: 0.505684
+[0] : MAC/cycle: 0.506244
 [0] : n. of Cores: 8
 make: Leaving directory '/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application'

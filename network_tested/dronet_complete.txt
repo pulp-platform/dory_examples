@@ -43,9 +43,9 @@ gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/
 
 L3 Buffer alloc initial	@ 3588608:	Ok
 
-L3 Buffer alloc initial	@ 2088608:	Ok
+L3 Buffer alloc initial	@ 2588608:	Ok
 
-L3 Buffer alloc initial	@ 588608:	Ok
+L3 Buffer alloc initial	@ 1588608:	Ok
 Layer 0  : Checksum = 134341      , FLASH 134341      , Check OK
 Layer 2  : Checksum = 1204708     , FLASH 1204708     , Check OK
 Layer 3  : Checksum = 1209329     , FLASH 1209329     , Check OK
@@ -58,60 +58,57 @@ Layer 11 : Checksum = 18859594    , FLASH 18859594    , Check OK
 Layer 12 : Checksum = 1193295     , FLASH 1193295     , Check OK
 Layer 14 : Checksum = 1596482     , FLASH 1596482     , Check OK
 
-L2 Buffer alloc initial	@ 0x1c012c70:	Ok
+L2 Buffer alloc initial	@ 0x1c012cd8:	Ok
 L1 Buffer alloc initial	@ 0x10006420:	Ok
 
 Checksum in/out Layer :	Ok
-Layer 0 ended 
+Layer ConvBNRelu 0 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 1 ended 
+Layer MaxPool 1 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 2 ended 
+Layer ConvBNRelu 2 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 3 ended 
+Layer ConvBNRelu 3 ended: 
+Checksum in/out Layer :	Ok
+Switching branch, already checked activation
+Layer ConvBNRelu 4 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 4 ended 
+Layer AddRelu 5 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 5 ended 
-Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 6 ended 
+Layer ConvBNRelu 6 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 7 ended 
+Layer ConvBNRelu 7 ended: 
+Checksum in/out Layer :	Ok
+Switching branch, already checked activation
+Layer ConvBNRelu 8 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 8 ended 
+Layer AddRelu 9 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 9 ended 
-Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 10 ended 
+Layer ConvBNRelu 10 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 11 ended 
+Layer ConvBNRelu 11 ended: 
+Checksum in/out Layer :	Ok
+Switching branch, already checked activation
+Layer ConvBNRelu 12 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 12 ended 
+Layer AddRelu 13 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 13 ended 
-Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 14 ended 
+Layer MatMul 14 ended: 
 Checksum final :	Ok
 
-[0] : num_cycles: 7480636
+[0] : num_cycles: 7485495
 [0] : MACs: 43238144
-[0] : MAC/cycle: 5.780009
+[0] : MAC/cycle: 5.776257
 [0] : n. of Cores: 8
 make: Leaving directory '/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application'

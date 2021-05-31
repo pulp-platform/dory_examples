@@ -34,9 +34,9 @@ gapy --target=gapuino_v2 --platform=gvsoc --work-dir=/mnt/c/Users/aless/Desktop/
 
 L3 Buffer alloc initial	@ 3588608:	Ok
 
-L3 Buffer alloc initial	@ 2088608:	Ok
+L3 Buffer alloc initial	@ 2588608:	Ok
 
-L3 Buffer alloc initial	@ 588608:	Ok
+L3 Buffer alloc initial	@ 1588608:	Ok
 Layer 0  : Checksum = 64980       , FLASH 64980       , Check OK
 Layer 1  : Checksum = 306480      , FLASH 306480      , Check OK
 Layer 2  : Checksum = 296679      , FLASH 296679      , Check OK
@@ -45,37 +45,36 @@ Layer 4  : Checksum = 303783      , FLASH 303783      , Check OK
 Layer 6  : Checksum = 309013      , FLASH 309013      , Check OK
 Layer 7  : Checksum = 2545582     , FLASH 2545582     , Check OK
 
-L2 Buffer alloc initial	@ 0x1c00e790:	Ok
+L2 Buffer alloc initial	@ 0x1c00e868:	Ok
 L1 Buffer alloc initial	@ 0x10006420:	Ok
 
 Checksum in/out Layer :	Ok
-Layer 0 ended 
+Layer ConvBNRelu 0 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 1 ended 
+Layer ConvBNRelu 1 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 2 ended 
+Layer ConvBNRelu 2 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 3 ended 
+Layer ConvBNRelu 3 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 4 ended 
+Layer ConvBNRelu 4 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 5 ended 
-Checksum in/out Layer :	Ok
-Checksum in/out Layer :	Ok
-Layer 6 ended 
+Layer AddRelu 5 ended: 
 Checksum in/out Layer :	Ok
 Checksum in/out Layer :	Ok
-Layer 7 ended 
+Layer ConvBNRelu 6 ended: 
+Checksum in/out Layer :	Ok
+Checksum in/out Layer :	Ok
+Layer MatMul 7 ended: 
 Checksum final :	Ok
 
-[0] : num_cycles: 2483629
+[0] : num_cycles: 2483003
 [0] : MACs: 15700000
-[0] : MAC/cycle: 6.321395
+[0] : MAC/cycle: 6.322989
 [0] : n. of Cores: 8
 make: Leaving directory '/mnt/c/Users/aless/Desktop/Dottorato/DORY_project/dory/dory_examples/application'
