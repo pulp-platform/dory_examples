@@ -18,7 +18,7 @@
 
 import sys
 sys.path.append('../')
-from ONNX_management import ONNX_management as onnx_m
+from ONNX_management_V2 import ONNX_management as onnx_m
 from Model_deployment import Model_deployment as model_deploy
 import os
 import argparse
@@ -40,7 +40,7 @@ def main():
     parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--optional', default = '8bit', help = '8bit, mixed-sw, mixed-hw, 1D_Conv')
+    parser.add_argument('--precision', default = '8bit', help = '8bit, mixed-sw, mixed-hw, 1D_Conv')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -50,32 +50,29 @@ def main():
             for sub_files in files:
                 if 'onnx' in files:
                     net = files
-    if args.optional == '8bit' or args.optional == '1D_Conv':
-        precision_dict_act     = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
-        precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
-    else:
-        # precision_dict_act     = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
-        precision_dict_act     = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-        # precision_dict_weights = [8, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 8]
-        # precision_dict_act     = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
-        # precision_dict_weights = [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
-        precision_dict_weights = [8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8]
-    if 'mixed' in args.optional: ### works only for MV1
-        precision_dict_act     = []
-        precision_dict_weights = []
-        quant = args.network_dir.split('/')[3].split('_')
-        precision_dict_act.append(int(quant[1][-2]))
-        precision_dict_weights.append(int(quant[1][-4]))
-        for i in np.arange(13):
-            precision_dict_act.append(int(quant[3][-1]))
-            precision_dict_act.append(int(quant[4][-2]))
-            precision_dict_weights.append(int(quant[3][-3]))
-            precision_dict_weights.append(int(quant[4][-4]))
-        precision_dict_act.append(int(quant[4][-2]))
-        precision_dict_act.append(32)
-        precision_dict_weights.append(int(quant[4][-4]))
-        precision_dict_weights.append(int(quant[2][-2]))
+
     PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
+    if PULP_Nodes_Graph[0].weights_precision == 0:
+        if args.precision == '8bit' or args.precision == '1D_Conv':
+            for i, nodes in enumerate(PULP_Nodes_Graph):
+                PULP_Nodes_Graph[i].out_activation_precision = 8
+                PULP_Nodes_Graph[i].weights_precision = 8
+                PULP_Nodes_Graph[i].input_activation_precision = 8
+        if 'mixed' in args.precision: ### for NEMO output network
+            quant = args.network_dir.split('/')[3].split('_')
+            PULP_Nodes_Graph[0].out_activation_precision = int(quant[1][-2])
+            PULP_Nodes_Graph[0].weights_precision = int(quant[1][-4])
+            PULP_Nodes_Graph[0].input_activation_precision = 8
+            for i, nodes in enumerate(PULP_Nodes_Graph[1:]):
+                if i % 2 == 0:
+                    PULP_Nodes_Graph[i].out_activation_precision = int(quant[3][-1])
+                    PULP_Nodes_Graph[i].weights_precision = int(quant[3][-3])
+                    PULP_Nodes_Graph[i].input_activation_precision = PULP_Nodes_Graph[i-1].out_activation_precision
+                else:
+                    PULP_Nodes_Graph[i].out_activation_precision = int(quant[4][-2])
+                    PULP_Nodes_Graph[i].weights_precision = int(quant[4][-4])
+                    PULP_Nodes_Graph[i].input_activation_precision = PULP_Nodes_Graph[i-1].out_activation_precision
+        PULP_Nodes_Graph[-1].out_activation_precision = 32
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
                             args.network_dir,
@@ -88,12 +85,10 @@ def main():
                             args.l2_buffer_size,
                             args.fc_frequency,
                             args.cl_frequency,
-                            8, 8, 8, args.Bn_Relu_Bits, 
+                            args.Bn_Relu_Bits, 
                             args.sdk,
-                            args.dma_parallelization,args.
-                            optional,
-                            precision_dict_act,
-                            precision_dict_weights)
+                            args.dma_parallelization,
+                            args.precision)
 
 if __name__ == '__main__':
     main()
