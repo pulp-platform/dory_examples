@@ -18,7 +18,6 @@
 
 import sys
 sys.path.append('../')
-from ONNX_management_V2 import ONNX_management as onnx_m
 from Model_deployment import Model_deployment as model_deploy
 import os
 import argparse
@@ -36,11 +35,11 @@ def main():
     parser.add_argument('--perf_layer', default = 'No', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
     parser.add_argument('--verbose_level', default = 'Check_all+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
     parser.add_argument('--chip', default = 'GAP8v3', help = 'GAP8v2 for fixing DMA issue. GAP8v3 otherise')
-    parser.add_argument('--sdk', default = 'pulp_sdk', help = 'gap_sdk or pulp_sdk')
+    parser.add_argument('--sdk', default = 'gap_sdk', help = 'gap_sdk or pulp_sdk')
     parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--precision', default = '8bit', help = '8bit, mixed-sw, mixed-hw, 1D_Conv')
+    parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -50,29 +49,13 @@ def main():
             for sub_files in files:
                 if 'onnx' in files:
                     net = files
-
-    PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
-    if PULP_Nodes_Graph[0].weights_precision == 0:
-        if args.precision == '8bit' or args.precision == '1D_Conv':
-            for i, nodes in enumerate(PULP_Nodes_Graph):
-                PULP_Nodes_Graph[i].out_activation_precision = 8
-                PULP_Nodes_Graph[i].weights_precision = 8
-                PULP_Nodes_Graph[i].input_activation_precision = 8
-        if 'mixed' in args.precision: ### for NEMO output network
-            quant = args.network_dir.split('/')[3].split('_')
-            PULP_Nodes_Graph[0].out_activation_precision = int(quant[1][-2])
-            PULP_Nodes_Graph[0].weights_precision = int(quant[1][-4])
-            PULP_Nodes_Graph[0].input_activation_precision = 8
-            for i, nodes in enumerate(PULP_Nodes_Graph[1:]):
-                if i % 2 == 0:
-                    PULP_Nodes_Graph[i].out_activation_precision = int(quant[3][-1])
-                    PULP_Nodes_Graph[i].weights_precision = int(quant[3][-3])
-                    PULP_Nodes_Graph[i].input_activation_precision = PULP_Nodes_Graph[i-1].out_activation_precision
-                else:
-                    PULP_Nodes_Graph[i].out_activation_precision = int(quant[4][-2])
-                    PULP_Nodes_Graph[i].weights_precision = int(quant[4][-4])
-                    PULP_Nodes_Graph[i].input_activation_precision = PULP_Nodes_Graph[i-1].out_activation_precision
-        PULP_Nodes_Graph[-1].out_activation_precision = 32
+    if args.frontend == 'Nemo':
+        from NEMO_Onnx import NEMO_onnx as NEMO_onnx
+        PULP_Nodes_Graph = NEMO_onnx(args.network_dir + net, 'GAP8').onnx_to_PULP()
+    	# PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
+    elif args.frontend == 'Quantlab':
+        from QUANTLAB_Onnx import Quantlab_onnx as Quantlab_onnx
+        PULP_Nodes_Graph = Quantlab_onnx(args.network_dir + net, 'GAP8').onnx_to_PULP()
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
                             args.network_dir,
@@ -87,8 +70,7 @@ def main():
                             args.cl_frequency,
                             args.Bn_Relu_Bits, 
                             args.sdk,
-                            args.dma_parallelization,
-                            args.precision)
+                            args.dma_parallelization)
 
 if __name__ == '__main__':
     main()
