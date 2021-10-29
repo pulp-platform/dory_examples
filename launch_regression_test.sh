@@ -82,12 +82,12 @@ grep -FR 'Checksum final :' ./network_tested/dscnn_test.txt
 ####### 1D networks ######
 
 echo "TCN_T MAC/cycle: 4.291659"
-python3 network_generate.py --network_dir examples/8-bits-1D/TCN_T/ --Bn_Relu_Bits 64 --sdk gap_sdk --optional 1D_Conv
+python3 network_generate.py --network_dir examples/8-bits-1D/TCN_T/ --Bn_Relu_Bits 64 --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/TCN_T.txt
 grep -FR 'Checksum final :' ./network_tested/TCN_T.txt 
 
 echo "TCN_test_library MAC/cycle: 8.815123"
-python3 network_generate.py --network_dir examples/8-bits-1D/TCN_test_library/ --Bn_Relu_Bits 64 --sdk gap_sdk --optional 1D_Conv
+python3 network_generate.py --network_dir examples/8-bits-1D/TCN_test_library/ --Bn_Relu_Bits 64 --sdk gap_sdk
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/TCN_test_library.txt
 grep -FR 'Checksum final :' ./network_tested/TCN_test_library.txt 
 

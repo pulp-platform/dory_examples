@@ -18,7 +18,6 @@
 
 import sys
 sys.path.append('../')
-from Model_deployment import Model_deployment as model_deploy
 import os
 import argparse
 from argparse import RawTextHelpFormatter
@@ -29,8 +28,8 @@ def main():
     parser.add_argument('--network_dir', default = "./examples/8-bits-2D/MV1-128/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
-    parser.add_argument('--master_stack', type=int, default = 4096, help = 'Cluster Core 0 stack')
-    parser.add_argument('--slave_stack', type=int, default = 3072, help = 'Cluster Core 1-7 stack')
+    parser.add_argument('--master_stack', type=int, default = 3500, help = 'Cluster Core 0 stack')
+    parser.add_argument('--slave_stack', type=int, default = 3310, help = 'Cluster Core 1-7 stack')
     parser.add_argument('--Bn_Relu_Bits', type=int, default = 32, help = 'Number of bits for Relu/BN')
     parser.add_argument('--perf_layer', default = 'No', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
     parser.add_argument('--verbose_level', default = 'Check_all+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
@@ -40,6 +39,7 @@ def main():
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
     parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
+    parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -50,12 +50,18 @@ def main():
                 if 'onnx' in files:
                     net = files
     if args.frontend == 'Nemo':
-        from NEMO_Onnx import NEMO_onnx as NEMO_onnx
-        PULP_Nodes_Graph = NEMO_onnx(args.network_dir + net, 'GAP8').onnx_to_PULP()
+        from NEMO_Onnx import NEMO_onnx as onnx_manager
     	# PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
     elif args.frontend == 'Quantlab':
-        from QUANTLAB_Onnx import Quantlab_onnx as Quantlab_onnx
-        PULP_Nodes_Graph = Quantlab_onnx(args.network_dir + net, 'GAP8').onnx_to_PULP()
+        from QUANTLAB_Onnx import Quantlab_onnx as onnx_manager
+
+    PULP_Nodes_Graph = onnx_manager(args.network_dir + net, 'GAP8').onnx_to_PULP()
+
+    if args.backend == 'MCU':
+        from Model_deployment_MCU import Model_deployment_MCU as model_deploy
+    elif args.backend == 'Occamy':
+        from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
+        
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
                             args.network_dir,
@@ -70,6 +76,7 @@ def main():
                             args.cl_frequency,
                             args.Bn_Relu_Bits, 
                             args.sdk,
+                            args.backend,
                             args.dma_parallelization)
 
 if __name__ == '__main__':
