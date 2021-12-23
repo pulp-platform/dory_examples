@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
     parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
     parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
+    parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -59,8 +60,10 @@ def main():
 
     if args.backend == 'MCU':
         from Model_deployment_MCU import Model_deployment_MCU as model_deploy
+        type_data = 'char'
     elif args.backend == 'Occamy':
         from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
+        type_data = 'float'
         
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
@@ -77,7 +80,9 @@ def main():
                             args.Bn_Relu_Bits, 
                             args.sdk,
                             args.backend,
-                            args.dma_parallelization)
+                            args.dma_parallelization,
+                            args.number_of_clusters,
+                            type_data = type_data)
 
 if __name__ == '__main__':
     main()
