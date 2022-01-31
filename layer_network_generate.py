@@ -26,11 +26,6 @@ def copy_files(platform, chip, BitA, BitW, BitO, optional, layer_mixed_list, ver
         'cp ./dory/templates/mem_controller.h  ./application/DORY_network/inc/')
     tk = OrderedDict([])
     tk['platform'] = platform
-    tmpl = Template(filename="dory/templates/mchan_test.h")
-    s = tmpl.render(**tk)
-    save_string = './application/DORY_network/inc/mchan_test.h'
-    with open(save_string, "w") as f:
-        f.write(s)
     tk = OrderedDict([])
     tk['platform'] = platform
     tk['chip'] = chip
