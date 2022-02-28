@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
     parser.add_argument('--master_stack', type=int, default = 3500, help = 'Cluster Core 0 stack')
-    parser.add_argument('--slave_stack', type=int, default = 3310, help = 'Cluster Core 1-7 stack')
+    parser.add_argument('--slave_stack', type=int, default = 3400, help = 'Cluster Core 1-7 stack')
     parser.add_argument('--Bn_Relu_Bits', type=int, default = 32, help = 'Number of bits for Relu/BN')
     parser.add_argument('--perf_layer', default = 'No', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
     parser.add_argument('--verbose_level', default = 'Check_all+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
