@@ -1,6 +1,14 @@
 DORY examples and tutorial
 ==========================
 
+MiniNet test
+------------
+To run a mininet test:
+```
+python gen_mininet.py --Kin=<InChannels> --Kout=<OutChannels> --Hin=<InHeight> --Win=<InWidth> --Fs=<FilterSize> --Pad=<Padding>
+python deploy_mininet.py
+```
+
 Topology present in tutorial
 ----------------------------
 * MobilenetV1-128
