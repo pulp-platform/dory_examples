@@ -19,8 +19,7 @@
 import sys
 sys.path.append('../')
 from ONNX_management import ONNX_management as onnx_m
-from ONNX_management import node_element as node
-from Model_deployment import Model_deployment as model_deploy
+from PULP_node import node_element as node
 import os
 import argparse
 from argparse import RawTextHelpFormatter
@@ -41,11 +40,21 @@ def main():
     parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--optional', default = '8bit', help = '8bit, mixed-sw, mixed-hw, 1D_Conv') # change here to change backend kernels
+    parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
+    parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
+    parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
+
     args = parser.parse_args()
     precision_dict_act_out     = [8,8,8] # change first number to change BitOut of the layer
     precision_dict_weights = [8,8,8] # change first number to change BitW of the laye
     BitIn = 8 # BitIn of the layer
+
+    if args.backend == 'MCU':
+        from Model_deployment_MCU import Model_deployment_MCU as model_deploy
+        type_data = 'char'
+    elif args.backend == 'Occamy':
+        from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
+        type_data = 'float'
     
     new_node = node()
     new_node.input_index = 0 # don't touch
@@ -68,6 +77,16 @@ def main():
     new_node.MACs = new_node.output_h * new_node.output_w * new_node.output_channels * new_node.filter_size_h * new_node.filter_size_w * new_node.input_channels
     new_node.name = 'Conv'
     new_node.weights = np.random.randint(low = -127, high = 128, size = (new_node.input_channels, new_node.filter_size_h, new_node.filter_size_w, new_node.output_channels))
+    new_node.out_activation_bits = 8
+    new_node.input_activation_bits = 8
+    new_node.weight_bits = 8
+    new_node.input_dim = [new_node.input_h, new_node.input_w]
+    new_node.output_dim = [new_node.output_h, new_node.output_w]
+    new_node.kernel_shape = [new_node.filter_size_h, new_node.filter_size_w]
+    new_node.ch_in = new_node.input_channels
+    new_node.ch_out = new_node.output_channels
+    new_node.strides = [1,1]
+    
     new_node2 = node()
     new_node2.input_index = 1 # don't touch
     new_node2.output_index = 2 # don't touch
@@ -89,6 +108,16 @@ def main():
     new_node2.MACs = new_node.output_h * new_node.output_w * new_node.output_channels * new_node.filter_size_h * new_node.filter_size_w * new_node.input_channels
     new_node2.name = 'Gemm'
     new_node2.weights = np.random.randint(low = -127, high = 128, size = (new_node.input_channels, new_node.filter_size_h, new_node.filter_size_w, new_node.output_channels))
+    new_node2.out_activation_bits = 8
+    new_node2.input_activation_bits = 8
+    new_node2.weight_bits = 8
+    new_node2.input_dim = [new_node2.input_h, new_node2.input_w]
+    new_node2.output_dim = [new_node2.output_h, new_node2.output_w]
+    new_node2.kernel_shape = [new_node2.filter_size_h, new_node2.filter_size_w]
+    new_node2.ch_in = new_node2.input_channels
+    new_node2.ch_out = new_node2.output_channels
+    new_node2.strides = [1,1]
+
     final_node = node()
     final_node.input_index = 2
     final_node.output_index = 3
@@ -109,13 +138,24 @@ def main():
     final_node.MACs = final_node.output_h * final_node.output_w * final_node.output_channels * final_node.filter_size_h * final_node.filter_size_w * final_node.input_channels
     final_node.name = 'Gemm'
     final_node.weights = np.random.randint(low = -127, high = 128, size = (final_node.input_channels, final_node.filter_size_h, final_node.filter_size_w, final_node.output_channels))
+    final_node.out_activation_bits = 8
+    final_node.input_activation_bits = 8
+    final_node.weight_bits = 8
+    final_node.input_dim = [final_node.input_h, final_node.input_w]
+    final_node.output_dim = [final_node.output_h, final_node.output_w]
+    final_node.kernel_shape = [final_node.filter_size_h, final_node.filter_size_w]
+    final_node.ch_in = final_node.input_channels
+    final_node.ch_out = final_node.output_channels
+    final_node.strides = [1,1]
+
     PULP_Nodes_Graph = []
     PULP_Nodes_Graph.append(new_node)
     PULP_Nodes_Graph.append(new_node2)
     PULP_Nodes_Graph.append(final_node)
+
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
-                            './examples/8-bits-2D/MobilenetV1/',
+                            '.',
                             100,
                             args.verbose_level,
                             args.perf_layer,
@@ -125,11 +165,13 @@ def main():
                             args.l2_buffer_size,
                             args.fc_frequency,
                             args.cl_frequency,
-                            8, 8, BitIn, args.Bn_Relu_Bits, 
+                            args.Bn_Relu_Bits, 
                             args.sdk,
-                            args.dma_parallelization,args.
-                            optional,
-                            precision_dict_act_out,
-                            precision_dict_weights)
+                            args.backend,
+                            args.dma_parallelization,
+                            args.number_of_clusters,
+                            type_data = type_data)
+
+
 if __name__ == '__main__':
     main()

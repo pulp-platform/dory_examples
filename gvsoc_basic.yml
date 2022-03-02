@@ -1,0 +1,16 @@
+pulp_nnx_tests:
+  fs1_ki16_ko32_hi3_wi3:
+    path: 
+    command: make K_IN=16 K_OUT=32 H_IN=3 W_IN=3
+  fs1_ki32_ko32_hi3_wi3:
+    path: 
+    command: make K_IN=32 K_OUT=32 H_IN=3 W_IN=3
+  fs1_ki48_ko32_hi3_wi3:
+    path: 
+    command: make K_IN=48 K_OUT=32 H_IN=3 W_IN=3
+  fs1_ki16_ko64_hi3_wi3:
+    path: 
+    command: make K_IN=16 K_OUT=64 H_IN=3 W_IN=3
+  fs1_ki16_ko32_hi6_wi6:
+    path: 
+    command: make K_IN=16 K_OUT=32 H_IN=6 W_IN=6
