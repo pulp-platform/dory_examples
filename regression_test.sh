@@ -77,3 +77,7 @@ echo "MobilenetV1_4bits MAC/cycle: 2.058823"
 python3 network_generate.py --network_dir examples/Quantlab_examples/mnv1_4b4b_fixed/ --Bn_Relu_Bits 64 --sdk gap_sdk --frontend Quantlab
 make -C ./application/ clean all run CORE=8 platform=gvsoc > ./network_tested/MobilenetV1_4bits.txt
 grep -FR 'Checksum final :' ./network_tested/MobilenetV1_4bits.txt 
+
+###### Occamy tests ######
+python3 network_generate.py --network_dir ./examples/8-bits-2D/PenguiNet_32/ --backend Occamy --l1_buffer_size 25000 --l2_buffer_size 2000000 --number_of_clusters 2
+

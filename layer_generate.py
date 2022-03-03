@@ -58,15 +58,15 @@ def main():
     ##############################################
     ###### INPUT PARAMETERS TO DEFINE ############
     ##############################################
-    kernel_shape = [3,3]
-    ch_in = 32
+    kernel_shape = [1,1]
+    ch_in = 256
     ch_out = 32
-    DW = 1
+    DW = 0
     stride = 1
-    pads = [1,1,1,1]
-    input_dim = [16,16]
-    output_dim = [16, 16]
-    W_BITS = 4; IN_BITS = 4; OUT_BITS = 4;
+    pads = [0,0,0,0]
+    input_dim = [6,36]
+    output_dim = [6, 36]
+    W_BITS = 8; IN_BITS = 8; OUT_BITS = 8;
     ##############################################
     ##########DON'T TOUCH AFTER###################
     ##############################################
