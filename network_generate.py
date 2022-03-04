@@ -41,6 +41,7 @@ def main():
     parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
     parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
     parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
+    parser.add_argument('--optional', default = 'auto', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
     for files in os.listdir(args.network_dir):
@@ -82,6 +83,7 @@ def main():
                             args.backend,
                             args.dma_parallelization,
                             args.number_of_clusters,
+                            args.optional,
                             type_data = type_data)
 
 if __name__ == '__main__':

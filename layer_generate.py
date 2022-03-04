@@ -19,7 +19,6 @@
 import sys
 sys.path.append('../')
 from PULP_node import node_element as node
-from Model_deployment_MCU import Model_deployment_MCU as model_deploy
 import os
 import argparse
 from argparse import RawTextHelpFormatter
@@ -35,7 +34,17 @@ def clip8(conv, bits, shift):
     out = np.uint8(conv)
     return out
 
-def main():
+def main(
+        kernel_shape,
+        ch_in,
+        ch_out,
+        DW,
+        stride,
+        pads,
+        input_dim,
+        output_dim,
+        W_BITS, IN_BITS, OUT_BITS
+        ):
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('--network_dir', default = "./examples/layer_test/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
@@ -53,25 +62,35 @@ def main():
     parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
     parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
     parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
+    parser.add_argument('--layer_number', type=int, default = 1, help = 'Number of layer from excel.')
+    parser.add_argument('--optional', default = 'auto', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
+    first_node = node()
+    first_node.input_index = 0 # don't touch
+    first_node.output_index = 1 # don't touch
+    first_node.pads    = [0,0,0,0]
+    first_node.input_dim = input_dim
+    first_node.output_dim = output_dim
+    first_node.ch_in = 1 #int(100000/first_node.input_dim[0]/first_node.input_dim[1])
+    first_node.ch_out = ch_in # = first_node.input_channels if DW
+    first_node.kernel_shape = [1,1]
+    L2_memory = first_node.input_dim[0]*first_node.input_dim[1]*first_node.ch_in + first_node.ch_in*first_node.ch_out*first_node.kernel_shape[0]*first_node.kernel_shape[1]+ first_node.output_dim[0]*first_node.output_dim[1]*first_node.ch_out
+    if L2_memory > args.l2_buffer_size:
+        first_node.ch_in = int(100000/first_node.input_dim[0]/first_node.input_dim[1])
+    first_node.name = 'Conv'
+    h_dimension = first_node.get_parameter('kernel_shape')[0] + first_node.get_parameter('input_dim')[0] + first_node.get_parameter('output_dim')[0]
+    if h_dimension == 3:
+        first_node.name = 'Gemm'
+    first_node.group = 1 # put first_node.input_channels if DW
+    first_node.strides = stride # don't touch
+    first_node.out_activation_bits = IN_BITS
+    first_node.input_activation_bits = 8
+    first_node.weight_bits = 8
+    first_node.MACs = first_node.output_dim[0] * first_node.output_dim[1] * first_node.ch_out * first_node.kernel_shape[1] * first_node.kernel_shape[0] * first_node.ch_in
+
     new_node = node()
-    ##############################################
-    ###### INPUT PARAMETERS TO DEFINE ############
-    ##############################################
-    kernel_shape = [1,1]
-    ch_in = 256
-    ch_out = 32
-    DW = 0
-    stride = 1
-    pads = [0,0,0,0]
-    input_dim = [6,36]
-    output_dim = [6, 36]
-    W_BITS = 8; IN_BITS = 8; OUT_BITS = 8;
-    ##############################################
-    ##########DON'T TOUCH AFTER###################
-    ##############################################
-    new_node.input_index = 0 # don't touch
-    new_node.output_index = 1 # don't touch
+    new_node.input_index = 1 # don't touch
+    new_node.output_index = 2 # don't touch
     new_node.pads    = pads
     new_node.input_dim = input_dim
     new_node.output_dim = output_dim
@@ -79,6 +98,9 @@ def main():
     new_node.ch_out = ch_out # = new_node.input_channels if DW
     new_node.kernel_shape = kernel_shape
     new_node.name = 'Conv'
+    h_dimension = new_node.get_parameter('kernel_shape')[0] + new_node.get_parameter('input_dim')[0] + new_node.get_parameter('output_dim')[0]
+    if h_dimension == 3:
+        new_node.name = 'Gemm'
     if DW == 0:
         new_node.group = 1 # put new_node.input_channels if DW
     else:
@@ -90,13 +112,53 @@ def main():
     new_node.input_activation_bits = IN_BITS
     new_node.weight_bits = W_BITS
     new_node.MACs = new_node.output_dim[0] * new_node.output_dim[1] * new_node.ch_out * new_node.kernel_shape[1] * new_node.kernel_shape[0] * new_node.ch_in
+    
     torch.manual_seed(0)
-    x = torch.Tensor(1, new_node.ch_in * new_node.group, new_node.input_dim[0], new_node.input_dim[1]).uniform_(0, (2**(new_node.input_activation_bits + 1)))
-    x[x > (2**new_node.input_activation_bits - 1)] = 0
+    x = torch.Tensor(1, first_node.ch_in * first_node.group, first_node.input_dim[0], first_node.input_dim[1]).uniform_(0, (2**(first_node.input_activation_bits + 1)))
+    x[x > (2**first_node.input_activation_bits - 1)] = 0
     x = torch.round(x)
+    net = nn.Sequential(nn.Conv2d(first_node.ch_in * first_node.group, first_node.ch_out, kernel_size=(first_node.kernel_shape[0],first_node.kernel_shape[1]), stride=first_node.strides, padding=first_node.pads[0], groups=first_node.group, bias=False))
+    net[0].weight.data.random_(-(2**(first_node.weight_bits - 1)), (2**(first_node.weight_bits - 1)))
+    y = net(x)
+    y = y.permute(0,2,3,1)
+    y_shift = y.detach().numpy()
+    first_node.outshift = 0 # don't touch
+    i = 1
+    while True:
+        first_node.outshift = 0 # don't touch
+        y_shift = y.detach().numpy()
+        while True and first_node.outshift < 10:
+            if float(sum(sum(sum(sum(np.logical_and(y_shift>0, y_shift<(2**OUT_BITS-1))))))) < len(y_shift.flatten())/(6.0*i):
+                first_node.outshift+=1
+            else:
+                break
+            y_shift = (y_shift / 2).astype('int')
+        if first_node.outshift < 10:
+            break
+        else: 
+            i += 1
+    y = clip8(y.detach().numpy(), first_node.out_activation_bits, first_node.outshift)
+    x_input2 = torch.tensor(y).permute(0,3,1,2).float()
+    x = x.permute(0,2,3,1).flatten()
+    Input_compressed = []
+    z = 0
+    import copy
+    Loop_over = copy.deepcopy(x)
+    for _, i_x in enumerate(Loop_over):
+        if (z % int(8 / first_node.input_activation_bits)) == 0:
+            Input_compressed.append(int(i_x.item()))
+        else:
+            Input_compressed[-1] += int(i_x.item()) << (first_node.input_activation_bits * (z % int(8 / first_node.input_activation_bits)))
+        z += 1
+    x_save = np.concatenate((np.asarray([0]), np.asarray(Input_compressed)), axis = 0)
+    y = np.concatenate((np.asarray([0]), y.flatten()), axis = 0)    
+    np.savetxt(args.network_dir + 'input.txt', x_save, delimiter=',')
+    np.savetxt(args.network_dir + 'out_layer0.txt', y, delimiter=',')
+    first_node.weights = net[0].weight.data.permute(0,2,3,1).numpy()
+    torch.manual_seed(0)
     net = nn.Sequential(nn.Conv2d(new_node.ch_in * new_node.group, new_node.ch_out, kernel_size=(new_node.kernel_shape[0],new_node.kernel_shape[1]), stride=new_node.strides, padding=new_node.pads[0], groups=new_node.group, bias=False))
     net[0].weight.data.random_(-(2**(new_node.weight_bits - 1)), (2**(new_node.weight_bits - 1)))
-    y = net(x)
+    y = net(x_input2)
     y = y.permute(0,2,3,1)
     y_shift = y.detach().numpy()
     new_node.outshift = 0 # don't touch
@@ -115,31 +177,19 @@ def main():
         else: 
             i += 1
     y = clip8(y.detach().numpy(), new_node.out_activation_bits, new_node.outshift)
-    x = x.permute(0,2,3,1).flatten()
-    Input_compressed = []
-    z = 0
-    import copy
-    Loop_over = copy.deepcopy(x)
-    for _, i_x in enumerate(Loop_over):
-        if (z % int(8 / OUT_BITS)) == 0:
-            Input_compressed.append(int(i_x.item()))
-        else:
-            Input_compressed[-1] += int(i_x.item()) << (OUT_BITS * (z % int(8 / OUT_BITS)))
-        z += 1
-    x_save = np.concatenate((np.asarray([0]), np.asarray(Input_compressed)), axis = 0)
     y = np.concatenate((np.asarray([0]), y.flatten()), axis = 0)    
-    np.savetxt(args.network_dir + 'input.txt', x_save, delimiter=',')
-    np.savetxt(args.network_dir + 'out_layer0.txt', y, delimiter=',')
     np.savetxt(args.network_dir + 'out_layer1.txt', y, delimiter=',')
+    np.savetxt(args.network_dir + 'out_layer2.txt', y, delimiter=',')
     new_node.weights = net[0].weight.data.permute(0,2,3,1).numpy()
+
     final_node = node()
-    final_node.input_index = 1
-    final_node.output_index = 2
+    final_node.input_index = 2
+    final_node.output_index = 3
     final_node.pads    = [0, 0, 0, 0]
     final_node.input_dim = [1, 1]
     final_node.output_dim = [1, 1]
     final_node.ch_in =  new_node.ch_out
-    final_node.ch_out = 1
+    final_node.ch_out = 8
     final_node.kernel_shape = [1, 1]
     final_node.group = 1
     final_node.strides = 1
@@ -150,9 +200,17 @@ def main():
     final_node.name = 'Gemm'
     final_node.weights = np.random.randint(low = -127, high = 128, size = (final_node.ch_in, final_node.kernel_shape[0], final_node.kernel_shape[1], final_node.ch_out))
     PULP_Nodes_Graph = []
+    PULP_Nodes_Graph.append(first_node)
     PULP_Nodes_Graph.append(new_node)
-    # PULP_Nodes_Graph.append(new_node2)
     PULP_Nodes_Graph.append(final_node)
+
+    if args.backend == 'MCU':
+        from Model_deployment_MCU import Model_deployment_MCU as model_deploy
+        type_data = 'char'
+    elif args.backend == 'Occamy':
+        from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
+        type_data = 'float'
+
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
                             100,
                             args.network_dir,
@@ -170,6 +228,30 @@ def main():
                             args.backend,
                             args.dma_parallelization,
                             args.number_of_clusters,
-                            type_data = 'char')
+                            args.optional,
+                            type_data = type_data)
 if __name__ == '__main__':
-    main()
+    ##############################################
+    ###### INPUT PARAMETERS TO DEFINE ############
+    ##############################################
+    kernel_shape = [1,1]
+    ch_in = 256
+    ch_out = 32
+    DW = 0
+    stride = 1
+    pads = [0,0,0,0]
+    input_dim = [6,36]
+    output_dim = [6, 36]
+    W_BITS = 8; IN_BITS = 8; OUT_BITS = 8;
+    ##############################################
+    ##########DON'T TOUCH AFTER###################
+    ##############################################
+    main(kernel_shape,
+        ch_in,
+        ch_out,
+        DW,
+        stride,
+        pads,
+        input_dim,
+        output_dim,
+        W_BITS, IN_BITS, OUT_BITS)
