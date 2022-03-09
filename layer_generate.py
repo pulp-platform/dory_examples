@@ -63,7 +63,7 @@ def main(
     parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
     parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
     parser.add_argument('--layer_number', type=int, default = 1, help = 'Number of layer from excel.')
-    parser.add_argument('--optional', default = 'auto', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
+    parser.add_argument('--optional', default = 'mixed-sw', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
     first_node = node()
     first_node.input_index = 0 # don't touch
@@ -82,7 +82,7 @@ def main(
     if h_dimension == 3:
         first_node.name = 'Gemm'
     first_node.group = 1 # put first_node.input_channels if DW
-    first_node.strides = stride # don't touch
+    first_node.strides = 1 # don't touch
     first_node.out_activation_bits = IN_BITS
     first_node.input_activation_bits = 8
     first_node.weight_bits = 8
@@ -137,6 +137,8 @@ def main(
             break
         else: 
             i += 1
+        if i == 10:
+            break
     y = clip8(y.detach().numpy(), first_node.out_activation_bits, first_node.outshift)
     x_input2 = torch.tensor(y).permute(0,3,1,2).float()
     x = x.permute(0,2,3,1).flatten()
@@ -176,6 +178,8 @@ def main(
             break
         else: 
             i += 1
+        if i == 10:
+            break
     y = clip8(y.detach().numpy(), new_node.out_activation_bits, new_node.outshift)
     y = np.concatenate((np.asarray([0]), y.flatten()), axis = 0)    
     np.savetxt(args.network_dir + 'out_layer1.txt', y, delimiter=',')
