@@ -14,8 +14,8 @@ class MiniNet(nn.Module):
         self.lay = nn.Conv2d(Kin, Kout, kernel_size=Fs, padding=Pad, bias=False)
         self.bn  = nn.BatchNorm2d(Kout)
         self.act = nn.ReLU(inplace=True)
-        self.lay2 = nn.Conv2d(Kout, Kout, kernel_size=1, padding=0, bias=False)
-        self.bn2  = nn.BatchNorm2d(Kout)
+        self.lay2 = nn.Conv2d(Kout, 1, stride=2, kernel_size=1, padding=0, bias=False)
+        self.bn2  = nn.BatchNorm2d(1)
         self.act2 = nn.ReLU(inplace=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
