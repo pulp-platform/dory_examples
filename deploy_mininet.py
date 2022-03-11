@@ -17,7 +17,10 @@
 # limitations under the License.
 
 import sys
-sys.path.append('../')
+sys.path.append('../Frontend/')
+sys.path.append('../NN_Deployment/')
+sys.path.append('../Tiler/')
+sys.path.append('../Templates_writer/')
 import os
 import argparse
 from argparse import RawTextHelpFormatter
@@ -51,17 +54,21 @@ def main():
                 if 'onnx' in files:
                     net = files
     if args.frontend == 'Nemo':
+        sys.path.append('../Frontend/NEMO/')
         from NEMO_Onnx import NEMO_onnx as onnx_manager
     	# PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
     elif args.frontend == 'Quantlab':
+        sys.path.append('../Frontend/Quantlab/')
         from QUANTLAB_Onnx import Quantlab_onnx as onnx_manager
 
     PULP_Nodes_Graph = onnx_manager(args.network_dir + net, 'GAP8').onnx_to_PULP()
 
     if args.backend == 'MCU':
+        sys.path.append('../NN_Deployment/MCU/')
         from Model_deployment_MCU import Model_deployment_MCU as model_deploy
         type_data = 'char'
     elif args.backend == 'Occamy':
+        sys.path.append('../NN_Deployment/Occamy/')
         from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
         type_data = 'float'
         
