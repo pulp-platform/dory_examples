@@ -17,7 +17,10 @@
 # limitations under the License.
 
 import sys
-sys.path.append('../')
+sys.path.append('../Frontend/')
+sys.path.append('../NN_Deployment/')
+sys.path.append('../Tiler/')
+sys.path.append('../Templates_writer/')
 from PULP_node import node_element as node
 import os
 import argparse
@@ -186,9 +189,11 @@ def main(nodes_list
         list_nodes_final[i].weights = net[0].weight.data.permute(0,2,3,1).numpy()
 
     if args.backend == 'MCU':
+        sys.path.append('../NN_Deployment/MCU/')
         from Model_deployment_MCU import Model_deployment_MCU as model_deploy
         type_data = 'char'
     elif args.backend == 'Occamy':
+        sys.path.append('../NN_Deployment/Occamy/')
         from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
         type_data = 'float'
 
