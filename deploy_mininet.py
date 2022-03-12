@@ -89,6 +89,7 @@ def main():
                             args.backend,
                             args.dma_parallelization,
                             args.number_of_clusters,
+                            optional = 'nnx',
                             type_data = type_data)
 
 if __name__ == '__main__':
