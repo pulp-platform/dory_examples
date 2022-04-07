@@ -220,14 +220,22 @@ if __name__ == '__main__':
     ##############################################
     ###### INPUT PARAMETERS TO DEFINE ############
     ##############################################
-    kernel_shape = [1,1]
-    ch_in = 8
-    ch_out = 12
+    kernel_shape = [3,3]
+    ch_in = 64
+    ch_out = 64
     DW = 0
     stride = 1
-    pads = [0,0,0,0]
-    input_dim = [1,1]
-    output_dim = [1, 1]
+    pads = [1,1,1,1]
+    input_dim = [32,32]
+    output_dim = [32, 32]
+    # kernel_shape = [1,1]
+    # ch_in = 1024
+    # ch_out = 64
+    # DW = 0
+    # stride = 1
+    # pads = [0,0,0,0]
+    # input_dim = [1,1]
+    # output_dim = [1, 1]
     W_BITS = 8; IN_BITS = 8; OUT_BITS = 8;
     ##############################################
     ##########DON'T TOUCH AFTER###################
