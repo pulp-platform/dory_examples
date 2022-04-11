@@ -8,3 +8,4 @@ BUILD/*
 logs/
 application/*
 application
+MiniNet/

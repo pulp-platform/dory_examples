@@ -9,9 +9,13 @@ from argparse import RawTextHelpFormatter
 import quantlib.editing.lightweight as qlw
 
 class MiniNet(nn.Module):
-    def __init__(self, Kin: int, Kout: int, Fs: int, Pad: int) -> None:
+    def __init__(self, Kin: int, Kout: int, Fs: int, Pad: int, Dw: int = 0) -> None:
         super(MiniNet, self).__init__()
-        self.lay = nn.Conv2d(Kin, Kout, kernel_size=Fs, padding=Pad, bias=False)
+        if Dw == 1:
+            assert Kin == Kout
+            self.lay = nn.Conv2d(Kin, Kout, kernel_size=Fs, padding=Pad, bias=False, groups=Kin)
+        else:
+            self.lay = nn.Conv2d(Kin, Kout, kernel_size=Fs, padding=Pad, bias=False)
         self.bn  = nn.BatchNorm2d(Kout)
         self.act = nn.ReLU(inplace=True)
         self.lay2 = nn.Conv2d(Kout, 1, stride=2, kernel_size=1, padding=0, bias=False)
@@ -53,12 +57,13 @@ def main():
     parser.add_argument('--Win', type=int, default=3, help='Width of layer')
     parser.add_argument('--Fs', type=int, default=1, help='Filter size')
     parser.add_argument('--Pad', type=int, default=0, help='Padding')
+    parser.add_argument('--Dw', type=int, default=0, help='Depthwise')
     args = parser.parse_args()
 
     device = torch.device(torch.cuda.current_device() if torch.cuda.is_available() else 'cpu')
 
     # create the network
-    network = MiniNet(Kin=args.Kin, Kout=args.Kout, Fs=args.Fs, Pad=args.Pad)
+    network = MiniNet(Kin=args.Kin, Kout=args.Kout, Fs=args.Fs, Pad=args.Pad, Dw=args.Dw)
     network = network.to(device=device)  # REMEMBER: place the parameters of the 'Module' on the device that guarantees the best performance
     print(network)
     print()
