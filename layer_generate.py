@@ -187,6 +187,7 @@ def main(nodes_list
         x = torch.tensor(y_new).permute(0,3,1,2).float()
         np.savetxt(args.network_dir + f'out_layer{i}.txt', y, delimiter=',')
         list_nodes_final[i].weights = net[0].weight.data.permute(0,2,3,1).numpy()
+        list_nodes_final[i].weights_raw = net[0].weight.data.permute(0,2,3,1).numpy()
 
     if args.backend == 'MCU':
         sys.path.append('../NN_Deployment/MCU/')
