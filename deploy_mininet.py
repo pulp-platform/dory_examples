@@ -29,6 +29,8 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('--network_dir', default = "./MiniNet/", help = 'directory of the onnx file of the network')
+    parser.add_argument('--number_of_deployed_layers', type=int, default = 1, help = 'Number of layers to be deployed.')
+    parser.add_argument('--check_layer', type=int, default = 0, help = 'Check layer.')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 250000, help = 'L2 buffer size.')
     parser.add_argument('--master_stack', type=int, default = 3500, help = 'Cluster Core 0 stack')
@@ -71,11 +73,11 @@ def main():
         sys.path.append('../NN_Deployment/Occamy/')
         from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
         type_data = 'float'
-        
+
     model_deploy('GAP8', args.chip).print_model_network(PULP_Nodes_Graph,
-                            1,
+                            args.number_of_deployed_layers,
                             args.network_dir,
-                            0,
+                            args.check_layer,
                             args.verbose_level,
                             args.perf_layer,
                             args.l1_buffer_size,
