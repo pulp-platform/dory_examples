@@ -17,7 +17,7 @@
 # limitations under the License.
 
 import sys
-sys.path.append('../Frontend/')
+sys.path.append('../ONNX_management/')
 sys.path.append('../NN_Deployment/')
 sys.path.append('../Tiler/')
 sys.path.append('../Templates_writer/')
@@ -26,8 +26,17 @@ import argparse
 from argparse import RawTextHelpFormatter
 import numpy as np
 
+Frontends = {"NEMO", "Quantlab"}
+Hardware_target = {"GAP8", "Occamy", "Diana WiP"}
+NoneType = type(None)
+
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument('--frontend', type = str, choices = ["NEMO", "Quantlab"], help = 'Frontend from which the onnx is produced and from which the network has been trained')
+    parser.add_argument('--hardware_target', type = str, choices = ["GAP8", "Occamy", "Diana"], help = 'Hardware platform for which the code is optimized')
+    parser.add_argument('--onnx_file', default = "./examples/8-bits-2D/PenguiNet_32/model_int.onnx", help = 'Specify the onnx file to read')
+    
+
     parser.add_argument('--network_dir', default = "./examples/8-bits-2D/MV1-128/", help = 'directory of the onnx file of the network')
     parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
     parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
@@ -41,28 +50,34 @@ def main():
     parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
     parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
     parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
     parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
     parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
     parser.add_argument('--optional', default = 'auto', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    for files in os.listdir(args.network_dir):
-        if 'onnx' in files:
-            net = files
-        elif '.' not in files:
-            for sub_files in files:
-                if 'onnx' in files:
-                    net = files
-    if args.frontend == 'Nemo':
-        sys.path.append('../Frontend/NEMO/')
-        from NEMO_Onnx import NEMO_onnx as onnx_manager
-    	# PULP_Nodes_Graph = onnx_m('GAP8', args.chip, args.network_dir + net).parameters_from_onnx(100)
-    elif args.frontend == 'Quantlab':
-        sys.path.append('../Frontend/Quantlab/')
-        from QUANTLAB_Onnx import Quantlab_onnx as onnx_manager
+    #############################################################
+    #### DORY FRONTEND --> From ONNX TO JSON FORMAT OF ALL NODES.
+    #############################################################
 
-    PULP_Nodes_Graph = onnx_manager(args.network_dir + net, 'GAP8').onnx_to_PULP()
+    ## Checking that a frontend and a backend are specified
+    if isinstance(args.frontend, NoneType) or isinstance(args.hardware_target, NoneType):
+        sys.exit("DORY Error call. Either frontend or hardware target are not specified.")
+    else:
+        print("Using {} as frontend. Targetting {} platform. ".format(args.frontend, args.hardware_target))
+    
+    ## Reading the onnx file
+    onnx_file = args.onnx_file
+
+    ## Including and running the transformation from Onnx to a DORY compatible graph
+    sys.path.append('../Frontend-frameworks/{}/'.format(args.frontend))
+    onnx_manager = __import__('ONNX_to_DORY')
+    onnx_to_DORY = getattr(onnx_manager, '{}_onnx'.format(args.frontend))
+    DORY_Graph = onnx_to_DORY(onnx_file).onnx_to_DORY()
+
+    ## Deployment of the model on the target architecture
+
+
+    import pdb;pdb.set_trace()
 
     if args.backend == 'MCU':
         sys.path.append('../NN_Deployment/MCU/')
