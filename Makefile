@@ -32,6 +32,8 @@ preprocess-interm:
 preprocess-output:
 	sed '/--\|accum/d' logs/output.log | sed 's/{//g' | sed 's/}//g' | sed 's/ //g' > logs/output_cleaned.log
 
+preprocess: preprocess-inputs preprocess-output preprocess-interm
+
 compare-inputs:
 	python sort_inputs.py
 	diff logs/input_sorted.log MiniNet/input.txt
