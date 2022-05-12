@@ -18,6 +18,10 @@ debug:
 	cat logs/ne16.log | grep -A 34 'Exiting MATRIXVEC' | grep -B 33 'NORMQUANT_MULT' > logs/interm.log
 	cat logs/ne16.log | grep -B 25 'x_array' > logs/inputs.log
 
+vcd:
+	$(MAKE) -C application run runner_args="--vcd --event=dma --event=ne16 --event=pe0"
+	gtkwave application/BUILD/PULP/GCC_RISCV/view.gtkw
+
 COUNT_SUBTILES = $(shell echo '($(wc -l < logs/acc_before_norm_quant.log) + 1) / 35' | bc)
 
 count-subtiles:
