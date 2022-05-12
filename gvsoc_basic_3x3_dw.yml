@@ -50,3 +50,4 @@ pulp_nnx_tests:
   dw1_fs3_ki256_ko256_hi3_wi6:
     path:
     command: make K_IN=256 K_OUT=256 H_IN=3 W_IN=6 FS=3 DW=1
+
