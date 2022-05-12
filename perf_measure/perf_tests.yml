@@ -1,0 +1,32 @@
+- 
+  k_out: 6
+  k_in: 256
+  h_in: 3
+  w_in: 5
+  fs: 3
+  qw: 8
+  dw: 0
+- 
+  k_out: 6
+  k_in: 256
+  h_in: 3
+  w_in: 3
+  fs: 3
+  qw: 8
+  dw: 0
+- 
+  k_out: 2
+  k_in: 256
+  h_in: 3
+  w_in: 5
+  fs: 3
+  qw: 8
+  dw: 0
+- 
+  k_out: 2
+  k_in: 256
+  h_in: 3
+  w_in: 3
+  fs: 3
+  qw: 8
+  dw: 0
