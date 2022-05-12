@@ -1,4 +1,4 @@
 {
 	"BNRelu_bits": 32,
-	"onnx_file": "./examples/8-bits-2D/MV1-128/mobilenet_1.0_128_7x8b.onnx"
+	"onnx_file": "./examples/8-bits-2D/MV1-128/model_int.onnx"
 }
