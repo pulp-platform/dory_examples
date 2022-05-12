@@ -1,0 +1,5 @@
+{
+	"BNRelu_bits": 32,
+	"onnx_file": "./examples/8-bits-2D/PenguiNet_32/model_int.onnx"
+	
+}
