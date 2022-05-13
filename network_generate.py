@@ -21,10 +21,8 @@
 # onnx file.
 
 # Libraries
-import os
 import argparse
 from argparse import RawTextHelpFormatter
-import numpy as np
 import json
 import sys
 
@@ -35,18 +33,23 @@ sys.path.append('../01_Utils/Templates_writer/')
 sys.path.append('../NN_Deployment/')
 sys.path.append('../')
 
-Frontends = {"NEMO", "Quantlab"}
-Hardware_target = {"GAP8", "Occamy", "Diana WiP"}
+Frontends = ["NEMO", "Quantlab"]
+Hardware_targets = ["GAP8", "Occamy", "Diana"]
 NoneType = type(None)
+
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--frontend', type = str, choices = ["NEMO", "Quantlab"], help = 'Frontend from which the onnx is produced and from which the network has been trained')
-    parser.add_argument('--hardware_target', type = str, choices = ["GAP8", "Occamy", "Diana"], help = 'Hardware platform for which the code is optimized')
-    parser.add_argument('--config_file', type = str, default = "config_Dronet.json", help = 'configuration with network onnx and other informations')
-    parser.add_argument('--verbose_level', default = 'Check_all+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
-    parser.add_argument('--perf_layer', default = 'No', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
-    parser.add_argument('--optional', default = 'auto', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
+    parser.add_argument('frontend', type=str, choices=Frontends, help='Frontend from which the onnx is produced and from which the network has been trained')
+    parser.add_argument('hardware_target', type=str, choices=Hardware_targets, help='Hardware platform for which the code is optimized')
+    parser.add_argument('config_file', type=str, help='Path to the JSON file that specifies the ONNX file of the network and other information.')
+    parser.add_argument('--verbose_level', default='Check_all+Perf_final',
+                        help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + "
+                             "final performances \nLast+Perf_final: all check + final performances \nExtract the "
+                             "parameters from the onnx model")
+    parser.add_argument('--perf_layer', default='No', help='Yes: MAC/cycles per layer. No: No perf per layer.')
+    parser.add_argument('--optional', default='auto',
+                        help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
 
     args = parser.parse_args()
 
@@ -54,15 +57,11 @@ def main():
     #### DORY FRONTEND --> From ONNX TO JSON FORMAT OF ALL NODES.
     #############################################################
 
-    ## Checking that a frontend and a backend are specified
-    if isinstance(args.frontend, NoneType) or isinstance(args.hardware_target, NoneType):
-        sys.exit("DORY Error call. Either frontend or hardware target are not specified.")
-    else:
-        print("Using {} as frontend. Targetting {} platform. ".format(args.frontend, args.hardware_target))
-    
+    print("Using {} as frontend. Targeting {} platform. ".format(args.frontend, args.hardware_target))
+
     ## Reading the json configuration file
-    f = open(args.config_file)
-    json_configuration_file = json.load(f)
+    with open(args.config_file) as f:
+        json_configuration_file = json.load(f)
 
     ## Reading the onnx file
     onnx_file = json_configuration_file["onnx_file"]
@@ -85,6 +84,7 @@ def main():
     onnx_manager = __import__('C_Parser')
     DORY_HW_to_C = getattr(onnx_manager, 'C_Parser')
     DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file, args.verbose_level, args.perf_layer, args.optional).full_graph_parsing()
+
 
 if __name__ == '__main__':
     main()
