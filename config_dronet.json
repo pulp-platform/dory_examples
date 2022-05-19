@@ -1,5 +1,0 @@
-{
-	"BNRelu_bits": 32,
-	"onnx_file": "./examples/8-bits-2D/dronet_complete/model_int.onnx"
-	
-}
