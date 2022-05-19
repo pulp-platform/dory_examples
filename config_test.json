@@ -1,5 +1,5 @@
 {
 	"BNRelu_bits": 64,
-	"onnx_file": "./examples/Quantlab_examples/mnv1_4b4b_fixed/model_int.onnx"
+	"onnx_file": "./examples/Quantlab_examples/MV2_8bits_uint/model_int.onnx"
 	
 }
