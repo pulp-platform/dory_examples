@@ -1,5 +1,6 @@
 {
 	"BNRelu_bits": 64,
-	"onnx_file": "../examples/Quantlab_examples/MV2_8bits_uint/model_int.onnx"
+	"onnx_file": "../examples/Quantlab_examples/MV2_8bits_uint/model_int.onnx",
+	"code reserved space": 212000
 	
 }
