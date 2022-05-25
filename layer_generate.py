@@ -15,13 +15,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import json
 import os
 import importlib
 import argparse
 import numpy as np
 import torch
-import torch.nn.functional as f
+import torch.nn.functional as F
 import sys
 sys.path.append('..')
 from Parsers.DORY_node import DORY_node
@@ -185,7 +185,7 @@ def create_input(node):
     return torch.randint(low=0, high=2**bits - 1, size=size)
 
 
-def create_layer(i_layer, layer_node, dory_node, input=None):
+def create_layer(i_layer, layer_node, dory_node, network_dir, input=None):
     if input is None:
         x = create_input(layer_node)
     else:
@@ -193,7 +193,7 @@ def create_layer(i_layer, layer_node, dory_node, input=None):
 
     x_to_compress = x.permute(0, 2, 3, 1).flatten()
     x_compressed = compress(x_to_compress, layer_node.input_activation_bits)
-    np.savetxt(os.path.join(args.network_dir, 'input.txt'), x_compressed, delimiter=',')
+    np.savetxt(os.path.join(network_dir, 'input.txt'), x_compressed, delimiter=',')
 
     w_low = -(2**(layer_node.weight_bits - 1))
     w_high = 2**(layer_node.weight_bits - 1)
@@ -205,7 +205,7 @@ def create_layer(i_layer, layer_node, dory_node, input=None):
         'layout': 'CoutCinK'
     }
 
-    y = f.conv2d(input=x, weight=w, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
+    y = F.conv2d(input=x, weight=w, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
 
     if 'BN' in dory_node.op_type:
         k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits)
@@ -224,77 +224,64 @@ def create_layer(i_layer, layer_node, dory_node, input=None):
     y = clip(y, dory_node.output_activation_bits)
 
     y_save = y.permute(0, 2, 3, 1).flatten().numpy()
-    np.savetxt(os.path.join(args.network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',')
+    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',')
 
     return y
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"], help='Hardware platform for which the code is optimized')
-    parser.add_argument('-ks', '--kernel_shape', type=int, required=True, nargs=2, help='Kernel shape HxW')
-    parser.add_argument('-ic', '--input_channels', type=int, required=True, help='Input channels')
-    parser.add_argument('-oc', '--output_channels', type=int, required=True, help='Output channels')
-    parser.add_argument('-id', '--input_dimensions', type=int, required=True, nargs=2, help='Input dimensions HxW')
-    parser.add_argument('-od', '--output_dimensions', type=int, required=True, nargs=2, help='Output dimensions HxW')
-    parser.add_argument('-g', '--groups', type=int, default=1, help='Groups. Default: 1')
-    parser.add_argument('-p', '--padding', type=int, default=[0, 0, 0, 0], nargs=4, help='Padding [top, bottom, right, left]. Default: [0, 0, 0, 0]')
-    parser.add_argument('-s', '--stride', type=int, default=[1, 1], nargs=2, help='Stride. Default: [1, 1]')
-    parser.add_argument('-wb', '--weight_bits', type=int, default=8, help='Weights bits. Default: 8')
-    parser.add_argument('-ib', '--input_bits', type=int, default=8, help='Input bits. Default: 8')
-    parser.add_argument('-ob', '--output_bits', type=int, default=8, help='Output bits. Default: 8')
-    parser.add_argument('-iab', '--intermediate_activation_bits', type=int, default=32, help='Intermediate activation bits. Default: 32')
-    parser.add_argument('-cb', '--constant_bits', type=int, default=32, help='Batch-Normalzation and ReLU bits. Default: 32')
-    parser.add_argument('--config_file', default='config_files/config_test.json', type=str, help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_test.json')
-    parser.add_argument('--app_dir', default='./application', help='Path to the generated application. Default: ./application')
-    parser.add_argument('--network_dir', default="./examples/layer_test", help='directory of the onnx file of the network')
-    parser.add_argument('--Bn_Relu_Bits', type=int, default=32, help='Number of bits for Relu/BN')
-    parser.add_argument('-bn', '--batchnorm', default='Yes', help='Use Batch Normalization. Default: Yes')
-    parser.add_argument('--perf_layer', default='Yes', help='Yes: MAC/cycles per layer. No: No perf per layer.')
-    parser.add_argument('--verbose_level', default='Check_all+Perf_final', help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
-    parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
-    parser.add_argument('--layer_number', type=int, default=1, help='Number of layer from excel.')
-    parser.add_argument('--optional', default='mixed-sw', help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
-    args = parser.parse_args()
-
-    os.makedirs(args.network_dir, exist_ok=True)
-
-    torch.manual_seed(0)
-
+def create_graph(params, network_dir):
     layer_node = create_layer_node(
-        args.kernel_shape,
-        args.input_channels,
-        args.output_channels,
-        args.groups,
-        args.stride,
-        args.padding,
-        args.input_dimensions,
-        args.output_dimensions,
-        args.weight_bits,
-        args.input_bits,
-        args.intermediate_activation_bits
+        params['kernel_shape'],
+        params['input_channels'],
+        params['output_channels'],
+        params['group'],
+        params['stride'],
+        params['padding'],
+        params['input_dimensions'],
+        params['output_dimensions'],
+        params['weight_bits'],
+        params['input_bits'],
+        params['intermediate_activation_bits']
     )
 
-    dory_node_name = 'BNRelu' if args.batchnorm == 'Yes' else 'Relu'
+    dory_node_name = 'BNRelu' if params['batchnorm'] else 'Relu'
 
     dory_node = create_dory_node(
         dory_node_name,
         dory_node_name,
         'CHW',
-        args.intermediate_activation_bits,
-        args.output_bits,
-        args.constant_bits
+        params['intermediate_activation_bits'],
+        params['output_bits'],
+        params['BNRelu_bits']
     )
 
-    create_layer(0, layer_node, dory_node)
+    with torch.no_grad():
+        create_layer(0, layer_node, dory_node, network_dir)
 
-    DORY_Graph = [layer_node, dory_node]
+    return [layer_node, dory_node]
 
-    json_configuration_file_root = 'examples/layer_test'
-    json_configuration_file = {
-        "BNRelu_bits": args.constant_bits,
-        "onnx_file": './nonexistent.onnx'
-    }
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"], help='Hardware platform for which the code is optimized')
+    parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str, help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
+    parser.add_argument('--app_dir', default='./application', help='Path to the generated application. Default: ./application')
+    parser.add_argument('--perf_layer', default='Yes', help='Yes: MAC/cycles per layer. No: No perf per layer.')
+    parser.add_argument('--verbose_level', default='Check_all+Perf_final', help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
+    parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
+    parser.add_argument('--optional', default='mixed-sw', help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
+    args = parser.parse_args()
+
+    json_configuration_file_root = os.path.dirname(args.config_file)
+    with open(args.config_file, 'r') as f:
+        json_configuration_file = json.load(f)
+
+    network_dir = os.path.join(json_configuration_file_root, os.path.dirname(json_configuration_file['onnx_file']))
+    os.makedirs(network_dir, exist_ok=True)
+
+    torch.manual_seed(0)
+
+    DORY_Graph = create_graph(json_configuration_file, network_dir)
 
     # Including and running the transformation from DORY IR to DORY HW IR
     onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.HW_Parser')
