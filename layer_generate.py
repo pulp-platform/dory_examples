@@ -23,49 +23,50 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import sys
+
 sys.path.append('..')
 from Parsers.DORY_node import DORY_node
 from Parsers.Layer_node import Layer_node
 
 
-def clip(x, bits):
-    low = 0
-    high = 2**bits - 1
-    x[x > high] = high
-    x[x < low] = low
-    return x
+def borders(bits, signed):
+    low = -(2 ** (bits-1)) if signed else 0
+    high = 2 ** (bits-1) - 1 if signed else 2 ** bits - 1
+    return low, high
 
 
-def create_dory_node(name, op_type, layout, input_activation_bits, output_activation_bits, constant_bits):
+def mean(bits, signed):
+    return 0 if signed else 2**(bits-1)
+
+
+def std(bits):
+    return 2**(bits-1)
+
+
+def create_dory_node(params):
     node = DORY_node()
     node.branch_out = 0
     node.branch_in = 0
     node.branch_last = 0
     node.branch_change = 0
 
+    name = 'BNRelu' if params['batchnorm'] else 'Relu'
     node.name = name
-    node.op_type = op_type
-
-    node.layout = layout
-
+    node.op_type = name
+    node.layout = 'CHW'
     node.bias_bits = 32
 
     # constant -> bn and relu
     node.constant_type = 'int'
-    node.constant_bits = constant_bits
+    node.constant_bits = params['BNRelu_bits']
     node.constant_names = []
-
-    node.input_activation_type = 'int'
-    node.input_activation_bits = input_activation_bits
-
-    node.output_activation_type = 'int'
-    node.output_activation_bits = output_activation_bits
-
+    node.input_activation_type = params['input_type']
+    node.input_activation_bits = params['intermediate_bits']
+    node.output_activation_type = params['output_type']
+    node.output_activation_bits = params['output_bits']
     node.weight_type = 'int'
     node.weight_bits = None
-
-    node.min = 0
-    node.max = 2**output_activation_bits - 1
+    node.min, node.max = borders(node.output_activation_bits, node.output_activation_type == 'int')
 
     # Ids of previous nodes, node can have multiple input nodes
     node.number_of_input_nodes = 1
@@ -77,31 +78,37 @@ def create_dory_node(name, op_type, layout, input_activation_bits, output_activa
     return node
 
 
-def create_layer_node(kernel_shape, input_channels, output_channels, group, stride, pads,
-                      input_dimensions, output_dimensions, weight_bits, input_activation_bits, output_activation_bits):
+def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
+    h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
+    w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
+    return [int(h), int(w)]
+
+
+def create_layer_node(params):
     node = Layer_node()
-    node.pads = pads
-    node.input_dimensions = input_dimensions
-    node.output_dimensions = output_dimensions
-    node.input_channels = input_channels
-    node.output_channels = output_channels
-    node.kernel_shape = kernel_shape
+    node.name = params['layer_type']
+    node.op_type = params['operation_type']  # TODO might be redundant
+    node.pads = params['padding']
+    node.group = params['group']
+    node.strides = params['stride']
+    node.kernel_shape = params['kernel_shape']
+    node.input_dimensions = params['input_dimensions']
+    node.output_dimensions = calculate_output_dimensions(node.input_dimensions, node.kernel_shape, node.strides, node.pads)
+    node.input_channels = params['input_channels']
+    node.output_channels = params['output_channels']
+    node.output_activation_type = params['output_type']
+    node.output_activation_bits = params['intermediate_bits']
+    node.input_activation_type = params['input_type']
+    node.input_activation_bits = params['input_bits']
     node.constant_names = []
     node.constant_type = 'int'
     node.constants_memory = None
     node.constant_bits = None
-    node.name = 'Convolution'
-    node.op_type = 'Conv'
-    node.group = group
-    node.strides = stride
-    node.output_activation_type = 'int'
-    node.output_activation_bits = output_activation_bits
-    node.input_activation_type = 'int'
-    node.input_activation_bits = input_activation_bits
     node.weight_type = 'int'
-    node.weight_bits = weight_bits
+    node.weight_bits = params['weight_bits']
     node.weight_memory = None
-    node.MACs = output_dimensions[0] * output_dimensions[1] * output_channels * kernel_shape[1] * kernel_shape[0] * input_channels
+    node.MACs = node.output_dimensions[0] * node.output_dimensions[1] * node.output_channels \
+                * node.kernel_shape[1] * node.kernel_shape[0] * node.input_channels
 
     # Ids of previous nodes, node can have multiple input nodes
     node.number_of_input_nodes = 1
@@ -112,36 +119,32 @@ def create_layer_node(kernel_shape, input_channels, output_channels, group, stri
     return node
 
 
-def compress(x, bits):
-    compressed = []
-    n_elements_in_byte = 8 // bits
-    i_element_in_byte = 0
-    for el in x:
-        if i_element_in_byte == 0:
-            compressed.append(el.item())
-        else:
-            compressed[-1] += el.item() << i_element_in_byte * bits
-
-        i_element_in_byte += 1
-        if i_element_in_byte == n_elements_in_byte:
-            i_element_in_byte = 0
-
-    return np.asarray(compressed, dtype=np.uint8)
+def clip(x, bits, signed=False):
+    low, high = borders(bits, signed)
+    x[x > high] = high
+    x[x < low] = low
+    return x
 
 
-def calculate_shift(x, bits):
+def calculate_shift(x, bits, signed):
     """
     Calculate shift
 
     This function calculates the shift in a way that it maximizes the number of values
     that are in between min and max after shifting. It looks only at positive values since
     all the negative ones are going to bi clipped to 0.
-    Tries to shift the mean of positive values towards the middle of the range [0, 2**bits - 1]
+    Signed: Tries to get the standard deviation to be equal to range / 2
+    Unsigned: Tries to shift the mean of positive values towards the middle of the range [0, 2**bits - 1]
     """
     x = x.type(torch.float)
-    mean = x[x > 0].mean().item()
-    ratio = mean / (2 ** (bits - 1))
+    if signed:
+        s = x.std()
+        ratio = 1 if s.isnan() or s.isinf() or s < 1 else s.item() / std(bits)
+    else:
+        m = x[x > 0].mean().item()
+        ratio = m / mean(bits, signed)
     shift = round(np.log2(ratio))
+    shift = 0 if shift < 0 else shift
     return shift
 
 
@@ -149,7 +152,7 @@ def batchnorm(x, scale, bias):
     return scale * x + bias
 
 
-def calculate_batchnorm_params(x, output_bits, constant_bits):
+def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
     """
     Calculate batchnorm
 
@@ -160,55 +163,60 @@ def calculate_batchnorm_params(x, output_bits, constant_bits):
     """
     x = x.type(torch.float)
 
-    desired_mean = (2 ** output_bits - 1) / 2
-    desired_std = 2 ** output_bits / 2
+    desired_mean = mean(output_bits, signed)
+    desired_std = std(output_bits)
 
     # Calculate mean and std for each output channel
-    mean = x.mean(dim=(-2, -1), keepdim=True)
-    std = x.std(dim=(-2, -1), keepdim=True)
+    m = x.mean(dim=(-2, -1), keepdim=True)
+    s = x.std(dim=(-2, -1), keepdim=True)
 
-    scale = desired_std / std
+    scale = torch.empty_like(s)
+    scale[s.isnan()] = 1
+    scale[torch.logical_not(s.isnan())] = desired_std / s[torch.logical_not(s.isnan())]
     scale = scale.round()
     scale = clip(scale, constant_bits)
     scale[scale == 0] = 1
 
-    bias = scale * (desired_mean - mean)
+    bias = scale * (desired_mean - m)
     bias = bias.round()
-    bias = clip(bias, constant_bits)
+    bias = clip(bias, constant_bits, signed=True)
 
     return scale, bias
 
 
 def create_input(node):
+    low, high = borders(node.input_activation_bits, node.input_activation_type == 'int')
     size = (1, node.input_channels * node.group, node.input_dimensions[0], node.input_dimensions[1])
-    bits = node.input_activation_bits
-    return torch.randint(low=0, high=2**bits - 1, size=size)
+    return torch.randint(low=low, high=high, size=size)
 
 
-def create_layer(i_layer, layer_node, dory_node, network_dir, input=None):
-    if input is None:
-        x = create_input(layer_node)
-    else:
-        x = input
+def create_weight(node):
+    low, high = borders(node.weight_bits, signed=True)
+    size = (node.output_channels, node.input_channels // node.group, node.kernel_shape[0], node.kernel_shape[1])
+    return torch.randint(low=low, high=high, size=size)
 
-    x_to_compress = x.permute(0, 2, 3, 1).flatten()
-    x_compressed = compress(x_to_compress, layer_node.input_activation_bits)
-    np.savetxt(os.path.join(network_dir, 'input.txt'), x_compressed, delimiter=',')
 
-    w_low = -(2**(layer_node.weight_bits - 1))
-    w_high = 2**(layer_node.weight_bits - 1)
-    w_size = (layer_node.output_channels, layer_node.input_channels, layer_node.kernel_shape[0], layer_node.kernel_shape[1])
-    w = torch.randint(low=w_low, high=w_high, size=w_size)
+def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight=None, batchnorm_params=None):
+    x = input if input is not None else create_input(layer_node)
+    x_save = x.permute(0, 2, 3, 1).flatten()
+    np.savetxt(os.path.join(network_dir, 'input.txt'), x_save, delimiter=',', fmt='%d')
+
+    w = weight if weight is not None else create_weight(layer_node)
     layer_node.constant_names.append('weights')
     layer_node.weights = {
-        'value': w.permute(0, 2, 3, 1).numpy(),
+        'value': w.numpy(),
         'layout': 'CoutCinK'
     }
 
     y = F.conv2d(input=x, weight=w, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
 
+    y_signed = layer_node.output_activation_type == 'int'
+
     if 'BN' in dory_node.op_type:
-        k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits)
+        if batchnorm_params is not None:
+            k, l = batchnorm_params
+        else:
+            k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits, y_signed)
         dory_node.constant_names.append('k')
         dory_node.k = {'value': k.numpy(), 'layout': ''}
         dory_node.constant_names.append('l')
@@ -217,43 +225,22 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None):
 
     dory_node.constant_names.append('outshift')
     dory_node.outshift = {
-        'value': calculate_shift(y, dory_node.output_activation_bits),
+        'value': calculate_shift(y, dory_node.output_activation_bits, y_signed),
         'layout': ''
     }
     y = y >> dory_node.outshift['value']
-    y = clip(y, dory_node.output_activation_bits)
+    y = clip(y, dory_node.output_activation_bits, y_signed)
 
     y_save = y.permute(0, 2, 3, 1).flatten().numpy()
-    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',')
+    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',', fmt='%d')
 
     return y
 
 
 def create_graph(params, network_dir):
-    layer_node = create_layer_node(
-        params['kernel_shape'],
-        params['input_channels'],
-        params['output_channels'],
-        params['group'],
-        params['stride'],
-        params['padding'],
-        params['input_dimensions'],
-        params['output_dimensions'],
-        params['weight_bits'],
-        params['input_bits'],
-        params['intermediate_activation_bits']
-    )
+    layer_node = create_layer_node(params)
 
-    dory_node_name = 'BNRelu' if params['batchnorm'] else 'Relu'
-
-    dory_node = create_dory_node(
-        dory_node_name,
-        dory_node_name,
-        'CHW',
-        params['intermediate_activation_bits'],
-        params['output_bits'],
-        params['BNRelu_bits']
-    )
+    dory_node = create_dory_node(params)
 
     with torch.no_grad():
         create_layer(0, layer_node, dory_node, network_dir)
@@ -263,13 +250,18 @@ def create_graph(params, network_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"], help='Hardware platform for which the code is optimized')
-    parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str, help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
-    parser.add_argument('--app_dir', default='./application', help='Path to the generated application. Default: ./application')
+    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"],
+                        help='Hardware platform for which the code is optimized')
+    parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str,
+                        help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
+    parser.add_argument('--app_dir', default='./application',
+                        help='Path to the generated application. Default: ./application')
     parser.add_argument('--perf_layer', default='Yes', help='Yes: MAC/cycles per layer. No: No perf per layer.')
-    parser.add_argument('--verbose_level', default='Check_all+Perf_final', help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
+    parser.add_argument('--verbose_level', default='Check_all+Perf_final',
+                        help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
     parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
-    parser.add_argument('--optional', default='mixed-sw', help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
+    parser.add_argument('--optional', default='mixed-sw',
+                        help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
     json_configuration_file_root = os.path.dirname(args.config_file)
