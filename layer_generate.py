@@ -181,7 +181,7 @@ def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
     bias = bias.round()
     bias = clip(bias, constant_bits, signed=True)
 
-    return scale, bias
+    return scale.type(torch.int64), bias.type(torch.int64)
 
 
 def create_input(node):
@@ -210,6 +210,16 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
 
     y = F.conv2d(input=x, weight=w, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
 
+    if layer_node.output_activation_bits == 64:
+        y_type = torch.int64
+    elif layer_node.output_activation_bits == 32:
+        y_type = torch.int32
+    else:
+        print("Unsupported output activation bitwidth")
+        sys.exit(-1)
+
+    y = y.type(y_type)
+
     y_signed = layer_node.output_activation_type == 'int'
 
     if 'BN' in dory_node.op_type:
@@ -218,10 +228,10 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
         else:
             k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits, y_signed)
         dory_node.constant_names.append('k')
-        dory_node.k = {'value': k.numpy(), 'layout': ''}
+        dory_node.k = {'value': k.type(torch.float).numpy(), 'layout': ''}
         dory_node.constant_names.append('l')
-        dory_node.l = {'value': l.numpy(), 'layout': ''}
-        y = batchnorm(y, k.type(torch.int64), l.type(torch.int64))
+        dory_node.l = {'value': l.type(torch.float).numpy(), 'layout': ''}
+        y = batchnorm(y, k, l)
 
     dory_node.constant_names.append('outshift')
     dory_node.outshift = {
