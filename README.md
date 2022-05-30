@@ -3,8 +3,9 @@ DORY examples and tutorial
 
 Topology present in tutorial
 ----------------------------
-* MobilenetV1-128
-* 4 Custom networks
+* Mobilenets V1/V2 - 4/8 bits - 128/224
+* Dronet 
+* Feed-Forward Neural networks
 
 Requirements
 ------------
@@ -50,15 +51,15 @@ Logs files are produced inside *logs* folder, with network parsed and layers til
 
 Install and build a new network from scratch
 --------------------------------------------
-First, source in the gap_sdk the gapv2
+First, source in the gap_sdk the platform you prefer
 
 ```
 source sourceme.sh
 ```
 Execute the following commands to generate the files and test a network on gvsoc with the latest version of GAP8 SDK.
 ```
-python3 network_generate.py
-cd application
+python3 network_generate.py Quantlab GAP8 ./dory_examples/config_files/config_Quantlab_MV2_4bits.json --app_dir ./dory_examples/application
+cd ${application_dir}
 make clean all run CORE=8 platform=gvsoc
 ```
 
@@ -67,7 +68,9 @@ The variable **CORE** define the number of the cores of the cluster used for par
 Some examples of files generation networks:
 
 ```
-python3 network_generate.py --network_dir './Test_suite_DORY/PenguiNet_32/' --Mobilenet_correction 0 --Bn_Relu_Bits 32
-python3 network_generate.py --network_dir './Test_suite_DORY/PenguiNet_64/' --Mobilenet_correction 0 --Bn_Relu_Bits 64
-python3 network_generate.py --network_dir './Test_suite_DORY/MobilenetV1/' --Mobilenet_correction 1 --Bn_Relu_Bits 32
+python3 network_generate.py Quantlab GAP8 ./dory_examples/config_files/config_Quantlab_MV2_4bits.json --app_dir ./dory_examples/application
+python3 network_generate.py Quantlab GAP8 ./dory_examples/config_files/config_Quantlab_MV2_8bits.json --app_dir ./dory_examples/application
+python3 network_generate.py NEMO GAP8 ./dory_examples/config_files/config_NEMO_dronet.json --app_dir ./dory_examples/application
 ```
+
+Note that for Quantlab MV2 networks you should use mixed-sw backend that supports signed input/output activations. 
