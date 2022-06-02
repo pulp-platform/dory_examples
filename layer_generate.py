@@ -62,7 +62,7 @@ def create_dory_node(params):
     node.constant_names = []
     node.input_activation_type = params['input_type']
     node.input_activation_bits = params['intermediate_bits']
-    node.output_activation_type = params['output_type']
+    node.output_activation_type = "uint"#params['output_type']
     node.output_activation_bits = params['output_bits']
     node.weight_type = 'int'
     node.weight_bits = None
@@ -186,7 +186,7 @@ def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
 
 def create_input(node):
     low, high = borders(node.input_activation_bits, node.input_activation_type == 'int')
-    size = (1, node.input_channels * node.group, node.input_dimensions[0], node.input_dimensions[1])
+    size = (1, node.input_channels, node.input_dimensions[0], node.input_dimensions[1])
     return torch.randint(low=low, high=high, size=size)
 
 
