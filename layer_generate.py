@@ -43,6 +43,13 @@ def std(bits):
     return 2**(bits-1)
 
 
+def clip(x, bits, signed=False):
+    low, high = borders(bits, signed)
+    x[x > high] = high
+    x[x < low] = low
+    return x
+
+
 def create_dory_node(params):
     node = DORY_node()
     node.branch_out = 0
@@ -62,7 +69,7 @@ def create_dory_node(params):
     node.constant_names = []
     node.input_activation_type = params['input_type']
     node.input_activation_bits = params['intermediate_bits']
-    node.output_activation_type = "uint"#params['output_type']
+    node.output_activation_type = params['output_type']
     node.output_activation_bits = params['output_bits']
     node.weight_type = 'int'
     node.weight_bits = None
@@ -78,12 +85,6 @@ def create_dory_node(params):
     return node
 
 
-def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
-    h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
-    w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
-    return [int(h), int(w)]
-
-
 def create_layer_node(params):
     node = Layer_node()
     node.name = params['layer_type']
@@ -93,6 +94,12 @@ def create_layer_node(params):
     node.strides = params['stride']
     node.kernel_shape = params['kernel_shape']
     node.input_dimensions = params['input_dimensions']
+
+    def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
+        h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
+        w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
+        return [int(h), int(w)]
+
     node.output_dimensions = calculate_output_dimensions(node.input_dimensions, node.kernel_shape, node.strides, node.pads)
     node.input_channels = params['input_channels']
     node.output_channels = params['output_channels']
@@ -119,32 +126,22 @@ def create_layer_node(params):
     return node
 
 
-def clip(x, bits, signed=False):
-    low, high = borders(bits, signed)
-    x[x > high] = high
-    x[x < low] = low
-    return x
-
-
 def calculate_shift(x, bits, signed):
     """
     Calculate shift
 
     This function calculates the shift in a way that it maximizes the number of values
     that are in between min and max after shifting. It looks only at positive values since
-    all the negative ones are going to bi clipped to 0.
-    Signed: Tries to get the standard deviation to be equal to range / 2
-    Unsigned: Tries to shift the mean of positive values towards the middle of the range [0, 2**bits - 1]
+    all the negative ones are going to be clipped to 0.
+    Calculates the maximum distance from the mean and shifts to fit it into standard deviation.
     """
-    x = x.type(torch.float)
-    if signed:
-        s = x.std()
-        ratio = 1 if s.isnan() or s.isinf() or s < 1 else s.item() / std(bits)
-    else:
-        m = x[x > 0].mean().item()
-        ratio = m / mean(bits, signed)
-    shift = round(np.log2(ratio))
-    shift = 0 if shift < 0 else shift
+    x = x[x > 0]
+    shift = 0
+    if x.numel() > 0:
+        dist = torch.abs(x - mean(bits, signed))
+        ratio = dist.max().item() / std(bits)
+        if ratio != 0:
+            shift = round(np.log2(ratio))
     return shift
 
 
@@ -186,7 +183,7 @@ def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
 
 def create_input(node):
     low, high = borders(node.input_activation_bits, node.input_activation_type == 'int')
-    size = (1, node.input_channels, node.input_dimensions[0], node.input_dimensions[1])
+    size = (1, node.input_channels * node.group, node.input_dimensions[0], node.input_dimensions[1])
     return torch.randint(low=low, high=high, size=size)
 
 
@@ -196,15 +193,25 @@ def create_weight(node):
     return torch.randint(low=low, high=high, size=size)
 
 
-def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight=None, batchnorm_params=None):
+def create_layer(i_layer, layer_node, dory_node, network_dir, hardware_target, input=None, weight=None, batchnorm_params=None):
+
+    def save(a, filename):
+        np.savetxt(os.path.join(network_dir, filename), a.permute(0, 2, 3, 1).flatten(), delimiter=',', fmt='%d')
+
     x = input if input is not None else create_input(layer_node)
-    x_save = x.permute(0, 2, 3, 1).flatten()
-    np.savetxt(os.path.join(network_dir, 'input.txt'), x_save, delimiter=',', fmt='%d')
+
+    save(x, 'input.txt')
 
     w = weight if weight is not None else create_weight(layer_node)
+
+    if hardware_target == 'nnx':
+        w_offset, _ = borders(layer_node.weight_bits, signed=True)
+    else:
+        w_offset = 0
+    w_save = w - w_offset
     layer_node.constant_names.append('weights')
     layer_node.weights = {
-        'value': w.numpy(),
+        'value': w_save.numpy(),
         'layout': 'CoutCinK'
     }
 
@@ -217,8 +224,9 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
     else:
         print("Unsupported output activation bitwidth")
         sys.exit(-1)
-
     y = y.type(y_type)
+
+    save(y, f'inter_layer{i_layer}.txt')
 
     y_signed = layer_node.output_activation_type == 'int'
 
@@ -241,21 +249,44 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
     y = y >> dory_node.outshift['value']
     y = clip(y, dory_node.output_activation_bits, y_signed)
 
-    y_save = y.permute(0, 2, 3, 1).flatten().numpy()
-    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',', fmt='%d')
+    save(y, f'out_layer{i_layer}.txt')
 
     return y
 
 
-def create_graph(params, network_dir):
+def create_graph(params, network_dir, hardware_target):
     layer_node = create_layer_node(params)
-
     dory_node = create_dory_node(params)
 
     with torch.no_grad():
-        create_layer(0, layer_node, dory_node, network_dir)
+        create_layer(0, layer_node, dory_node, network_dir, hardware_target)
 
     return [layer_node, dory_node]
+
+
+def layer_generate(
+        json_configuration_file,
+        json_configuration_file_root,
+        network_dir,
+        hardware_target,
+        verbose_level='Check_all',
+        perf_layer='No',
+        optional='auto',
+        app_dir='./application'
+):
+    torch.manual_seed(0)
+    DORY_Graph = create_graph(json_configuration_file, network_dir, hardware_target)
+
+    # Including and running the transformation from DORY IR to DORY HW IR
+    onnx_manager = importlib.import_module(f'Hardware-targets.{hardware_target}.HW_Parser')
+    DORY_to_DORY_HW = onnx_manager.onnx_manager
+    DORY_Graph = DORY_to_DORY_HW(DORY_Graph, json_configuration_file, json_configuration_file_root).full_graph_parsing()
+
+    # Deployment of the model on the target architecture
+    onnx_manager = importlib.import_module(f'Hardware-targets.{hardware_target}.C_Parser')
+    DORY_HW_to_C = onnx_manager.C_Parser
+    DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file, json_configuration_file_root,
+                              verbose_level, perf_layer, optional, app_dir).full_graph_parsing()
 
 
 if __name__ == '__main__':
@@ -281,17 +312,5 @@ if __name__ == '__main__':
     network_dir = os.path.join(json_configuration_file_root, os.path.dirname(json_configuration_file['onnx_file']))
     os.makedirs(network_dir, exist_ok=True)
 
-    torch.manual_seed(0)
-
-    DORY_Graph = create_graph(json_configuration_file, network_dir)
-
-    # Including and running the transformation from DORY IR to DORY HW IR
-    onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.HW_Parser')
-    DORY_to_DORY_HW = onnx_manager.onnx_manager
-    DORY_Graph = DORY_to_DORY_HW(DORY_Graph, json_configuration_file, json_configuration_file_root).full_graph_parsing()
-
-    # Deployment of the model on the target architecture
-    onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.C_Parser')
-    DORY_HW_to_C = onnx_manager.C_Parser
-    DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file, json_configuration_file_root,
-                              args.verbose_level, args.perf_layer, args.optional, args.app_dir).full_graph_parsing()
+    layer_generate(json_configuration_file, json_configuration_file_root, network_dir,
+                   args.hardware_target, args.verbose_level, args.perf_layer, args.optional, args.app_dir)
