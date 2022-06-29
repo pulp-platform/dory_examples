@@ -1,0 +1,5 @@
+{
+	"BNRelu_bits": 32,
+	"onnx_file": "../examples/Nemo_examples/8-bits-2D/Residual_connection_test_1/model_int.onnx",
+	"code reserved space": 132000
+}

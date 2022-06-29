@@ -15,244 +15,301 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import sys
-sys.path.append('../Frontend/')
-sys.path.append('../NN_Deployment/')
-sys.path.append('../Tiler/')
-sys.path.append('../Templates_writer/')
-from PULP_node import node_element as node
+import json
 import os
+import importlib
 import argparse
-from argparse import RawTextHelpFormatter
 import numpy as np
-import logging
 import torch
-import torch.nn as nn
-import copy
+import torch.nn.functional as F
+import sys
 
-def clip8(conv, bits, shift):
-    conv = conv.astype(int)>>shift;
-    conv[conv >= +(2**(bits) - 1)] = +(2**(bits) - 1)
-    conv[conv <= 0] = 0
-    out = np.uint8(conv)
-    return out
+sys.path.append('..')
+from Parsers.DORY_node import DORY_node
+from Parsers.Layer_node import Layer_node
 
-def add_node(
-        kernel_shape,
-        ch_in,
-        ch_out,
-        DW,
-        stride,
-        pads,
-        input_dim,
-        output_dim,
-        W_BITS, IN_BITS, OUT_BITS):
 
-    new_node = node()
-    new_node.pads    = pads
-    new_node.input_dim = input_dim
-    new_node.output_dim = output_dim
-    new_node.ch_in = ch_in
-    new_node.ch_out = ch_out # = new_node.input_channels if DW
-    new_node.kernel_shape = kernel_shape
-    new_node.name = 'Conv'
-    h_dimension = new_node.get_parameter('kernel_shape')[0] + new_node.get_parameter('input_dim')[0] + new_node.get_parameter('output_dim')[0]
-    if h_dimension == 3:
-        new_node.name = 'Gemm'
-    if DW == 0:
-        new_node.group = 1 # put new_node.input_channels if DW
+def borders(bits, signed):
+    low = -(2 ** (bits-1)) if signed else 0
+    high = 2 ** (bits-1) - 1 if signed else 2 ** bits - 1
+    return low, high
+
+
+def mean(bits, signed):
+    return 0 if signed else 2**(bits-1)
+
+
+def std(bits):
+    return 2**(bits-1)
+
+
+def create_dory_node(params):
+    node = DORY_node()
+    node.branch_out = 0
+    node.branch_in = 0
+    node.branch_last = 0
+    node.branch_change = 0
+
+    name = 'BNRelu' if params['batchnorm'] else 'Relu'
+    node.name = name
+    node.op_type = name
+    node.layout = 'CHW'
+    node.bias_bits = 32
+
+    # constant -> bn and relu
+    node.constant_type = 'int'
+    node.constant_bits = params['BNRelu_bits']
+    node.constant_names = []
+    node.input_activation_type = params['input_type']
+    node.input_activation_bits = params['intermediate_bits']
+    node.output_activation_type = "uint"#params['output_type']
+    node.output_activation_bits = params['output_bits']
+    node.weight_type = 'int'
+    node.weight_bits = None
+    node.min, node.max = borders(node.output_activation_bits, node.output_activation_type == 'int')
+
+    # Ids of previous nodes, node can have multiple input nodes
+    node.number_of_input_nodes = 1
+    node.input_indexes = ['1']  # layer_node is the input
+    node.output_index = '2'
+    # Constants: weights, bias, k, lambda
+    node.number_of_input_constants = 4
+
+    return node
+
+
+def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
+    h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
+    w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
+    return [int(h), int(w)]
+
+
+def create_layer_node(params):
+    node = Layer_node()
+    node.name = params['layer_type']
+    node.op_type = params['operation_type']  # TODO might be redundant
+    node.pads = params['padding']
+    node.group = params['group']
+    node.strides = params['stride']
+    node.kernel_shape = params['kernel_shape']
+    node.input_dimensions = params['input_dimensions']
+    node.output_dimensions = calculate_output_dimensions(node.input_dimensions, node.kernel_shape, node.strides, node.pads)
+    node.input_channels = params['input_channels']
+    node.output_channels = params['output_channels']
+    node.output_activation_type = params['output_type']
+    node.output_activation_bits = params['intermediate_bits']
+    node.input_activation_type = params['input_type']
+    node.input_activation_bits = params['input_bits']
+    node.constant_names = []
+    node.constant_type = 'int'
+    node.constants_memory = None
+    node.constant_bits = None
+    node.weight_type = 'int'
+    node.weight_bits = params['weight_bits']
+    node.bias_bits = params['bias_bits']
+    node.weight_memory = None
+    node.MACs = node.output_dimensions[0] * node.output_dimensions[1] * node.output_channels \
+                * node.kernel_shape[1] * node.kernel_shape[0] * node.input_channels
+
+    # Ids of previous nodes, node can have multiple input nodes
+    node.number_of_input_nodes = 1
+    node.input_indexes = ['0']  # '0' is the network input
+    node.output_index = '1'
+    # Constants: weights
+    node.number_of_input_constants = 1
+    return node
+
+
+def clip(x, bits, signed=False):
+    low, high = borders(bits, signed)
+    x[x > high] = high
+    x[x < low] = low
+    return x
+
+
+def calculate_shift(x, bits, signed):
+    """
+    Calculate shift
+
+    This function calculates the shift in a way that it maximizes the number of values
+    that are in between min and max after shifting. It looks only at positive values since
+    all the negative ones are going to bi clipped to 0.
+    Signed: Tries to get the standard deviation to be equal to range / 2
+    Unsigned: Tries to shift the mean of positive values towards the middle of the range [0, 2**bits - 1]
+    """
+    x = x.type(torch.float)
+    if signed:
+        s = x.std()
+        ratio = 1 if s.isnan() or s.isinf() or s < 1 else s.item() / std(bits)
     else:
-        new_node.group = ch_out
-        new_node.ch_in = 1
-        new_node.name += 'DW'
-    new_node.strides = stride # don't touch
-    new_node.out_activation_bits = OUT_BITS
-    new_node.input_activation_bits = IN_BITS
-    new_node.weight_bits = W_BITS
-    new_node.MACs = new_node.output_dim[0] * new_node.output_dim[1] * new_node.ch_out * new_node.kernel_shape[1] * new_node.kernel_shape[0] * new_node.ch_in
-    return new_node
+        m = x[x > 0].mean().item()
+        ratio = m / mean(bits, signed)
+    shift = round(np.log2(ratio))
+    shift = 0 if shift < 0 else shift
+    return shift
 
-def main(nodes_list
-        ):
-    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--network_dir', default = "./examples/layer_test/", help = 'directory of the onnx file of the network')
-    parser.add_argument('--l1_buffer_size', type=int, default = 38000, help = 'L1 buffer size. IT DOES NOT INCLUDE SPACE FOR STACKS.')
-    parser.add_argument('--l2_buffer_size', type=int, default = 380000, help = 'L2 buffer size.')
-    parser.add_argument('--master_stack', type=int, default = 4000, help = 'Cluster Core 0 stack')
-    parser.add_argument('--slave_stack', type=int, default = 3000, help = 'Cluster Core 1-7 stack')
-    parser.add_argument('--Bn_Relu_Bits', type=int, default = 32, help = 'Number of bits for Relu/BN')
-    parser.add_argument('--perf_layer', default = 'Yes', help = 'Yes: MAC/cycles per layer. No: No perf per layer.')
-    parser.add_argument('--verbose_level', default = 'Check_all+Perf_final', help = "None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
-    parser.add_argument('--chip', default = 'GAP8v3', help = 'GAP8v2 for fixing DMA issue. GAP8v3 otherise')
-    parser.add_argument('--sdk', default = 'gap_sdk', help = 'gap_sdk or pulp_sdk')
-    parser.add_argument('--dma_parallelization', default = '8-cores', help = '8-cores or 1-core')
-    parser.add_argument('--fc_frequency', default = 100000000, help = 'frequency of fabric controller')
-    parser.add_argument('--cl_frequency', default = 100000000, help = 'frequency of cluster')
-    parser.add_argument('--frontend', default = 'Nemo', help = 'Nemo or Quantlab')
-    parser.add_argument('--backend', default = 'MCU', help = 'MCU or Occamy')
-    parser.add_argument('--number_of_clusters', type=int, default = 1, help = 'Number of clusters in the target architecture.')
-    parser.add_argument('--layer_number', type=int, default = 1, help = 'Number of layer from excel.')
-    parser.add_argument('--optional', default = 'mixed-sw', help = 'auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
+
+def batchnorm(x, scale, bias):
+    return scale * x + bias
+
+
+def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
+    """
+    Calculate batchnorm
+
+    Calculate Batch-Normalization parameters scale and bias such that we maximize the number
+    of values that fall into range [0, 2**output_bits - 1].
+    Shifts the mean towards the center of the range and changes the standard deviation so that
+    most of the values fall into the range.
+    """
+    x = x.type(torch.float)
+
+    desired_mean = mean(output_bits, signed)
+    desired_std = std(output_bits)
+
+    # Calculate mean and std for each output channel
+    m = x.mean(dim=(-2, -1), keepdim=True)
+    s = x.std(dim=(-2, -1), keepdim=True)
+
+    scale = torch.empty_like(s)
+    scale[s.isnan()] = 1
+    scale[torch.logical_not(s.isnan())] = desired_std / s[torch.logical_not(s.isnan())]
+    scale = scale.round()
+    scale = clip(scale, constant_bits)
+    scale[scale == 0] = 1
+
+    bias = scale * (desired_mean - m)
+    bias = bias.round()
+    bias = clip(bias, constant_bits, signed=True)
+
+    return scale.type(torch.int64), bias.type(torch.int64)
+
+
+def create_input(node):
+    low, high = borders(node.input_activation_bits, node.input_activation_type == 'int')
+    size = (1, node.input_channels, node.input_dimensions[0], node.input_dimensions[1])
+    return torch.randint(low=low, high=high, size=size)
+
+
+def create_weight(node):
+    low, high = borders(node.weight_bits, signed=True)
+    size = (node.output_channels, node.input_channels // node.group, node.kernel_shape[0], node.kernel_shape[1])
+    return torch.randint(low=low, high=high, size=size)
+
+def create_bias(node):
+    low, high = borders(node.bias_bits, signed=True)
+    size = (node.output_channels,1)
+    # return torch.randint(low=low, high=high, size=size).flatten()
+    return torch.randint(low=0, high=1, size=size).flatten()
+
+def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight=None, batchnorm_params=None):
+    x = input if input is not None else create_input(layer_node)
+    x_save = x.permute(0, 2, 3, 1).flatten()
+    np.savetxt(os.path.join(network_dir, 'input.txt'), x_save, delimiter=',', fmt='%d')
+
+    w = weight if weight is not None else create_weight(layer_node)
+    layer_node.constant_names.append('weights')
+    layer_node.weights = {
+        'value': w.numpy(),
+        'layout': 'CoutCinK'
+    }
+    b = create_bias(layer_node)
+    layer_node.constant_names.append('bias')
+    layer_node.bias = {
+        'value': b.numpy(),
+        'layout': ''
+    }
+
+    y = F.conv2d(input=x, weight=w, bias=b, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
+
+    if layer_node.output_activation_bits == 64:
+        y_type = torch.int64
+    elif layer_node.output_activation_bits == 32:
+        y_type = torch.int32
+    else:
+        print("Unsupported output activation bitwidth")
+        sys.exit(-1)
+
+    y = y.type(y_type)
+
+    y_signed = layer_node.output_activation_type == 'int'
+
+    if 'BN' in dory_node.op_type:
+        if batchnorm_params is not None:
+            k, l = batchnorm_params
+        else:
+            k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits, y_signed)
+        dory_node.constant_names.append('k')
+        dory_node.k = {'value': k.type(torch.float).numpy(), 'layout': ''}
+        dory_node.constant_names.append('l')
+        dory_node.l = {'value': l.type(torch.float).numpy(), 'layout': ''}
+        y = batchnorm(y, k, l)
+    else:
+        dory_node.constant_names.append('outmul')
+        dory_node.outmul = {
+            'value': 1,
+            'layout': ''
+        }
+
+    dory_node.constant_names.append('outshift')
+    dory_node.outshift = {
+        'value': calculate_shift(y, dory_node.output_activation_bits, y_signed),
+        'layout': ''
+    }
+    y = y >> dory_node.outshift['value']
+    y = clip(y, dory_node.output_activation_bits, y_signed)
+
+    y_save = y.permute(0, 2, 3, 1).flatten().numpy()
+    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',', fmt='%d')
+
+    return y
+
+
+def create_graph(params, network_dir):
+    layer_node = create_layer_node(params)
+
+    dory_node = create_dory_node(params)
+
+    with torch.no_grad():
+        create_layer(0, layer_node, dory_node, network_dir)
+
+    return [layer_node, dory_node]
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('hardware_target', type=str, choices=["GAP8.GAP8_gvsoc","GAP8.GAP8_board", "nnx", "Occamy", "Diana"],
+                        help='Hardware platform for which the code is optimized')
+    parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str,
+                        help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
+    parser.add_argument('--app_dir', default='./application',
+                        help='Path to the generated application. Default: ./application')
+    parser.add_argument('--perf_layer', default='Yes', help='Yes: MAC/cycles per layer. No: No perf per layer.')
+    parser.add_argument('--verbose_level', default='Check_all+Perf_final',
+                        help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
+    parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
+    parser.add_argument('--optional', default='mixed-sw',
+                        help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    list_nodes_final = []
+    json_configuration_file_root = os.path.dirname(args.config_file)
+    with open(args.config_file, 'r') as f:
+        json_configuration_file = json.load(f)
 
-    ch_in_first_layer = 1
-    L2_memory = nodes_list[0].input_dim[0]*nodes_list[0].input_dim[1]*ch_in_first_layer + ch_in_first_layer*nodes_list[0].ch_in*1*1 + nodes_list[0].input_dim[0]*nodes_list[0].input_dim[1]*nodes_list[0].ch_in*nodes_list[0].group
-    if L2_memory > args.l2_buffer_size:
-        ch_in_first_layer = int(100000/nodes_list[0].input_dim[0]/nodes_list[0].input_dim[1])
-    new_node = add_node(
-        [1,1],
-        ch_in_first_layer,
-        nodes_list[0].ch_in * nodes_list[0].group,
-        0,
-        1,
-        [0,0,0,0],
-        nodes_list[0].input_dim,
-        nodes_list[0].input_dim,
-        8, 8, nodes_list[0].input_activation_bits)
-    new_node.input_index = 0 # don't touch
-    new_node.output_index = 1 # don't touch
-    list_nodes_final.append(new_node)
+    network_dir = os.path.join(json_configuration_file_root, os.path.dirname(json_configuration_file['onnx_file']))
+    os.makedirs(network_dir, exist_ok=True)
 
-    for i, node in enumerate(nodes_list):
-        node.input_index = i+1
-        node.output_index = i+2
-        list_nodes_final.append(node)
-
-    new_node = add_node(
-        [1,1],
-        # list_nodes_final[-1].ch_out*list_nodes_final[-1].output_dim[0]*list_nodes_final[-1].output_dim[1],
-        list_nodes_final[-1].ch_out, ### MEMORY OK BUT LAST LAYER FAILED. NOT A PROBLEM FOR THE OTHER CHECKS
-        8,
-        0,
-        1,
-        [0,0,0,0],
-        [1, 1],
-        [1, 1],
-        8, nodes_list[-1].out_activation_bits, 32)
-    new_node.input_index = i+2 # don't touch
-    new_node.output_index = i+3 # don't touch
-    list_nodes_final.append(new_node)
-    
     torch.manual_seed(0)
-    ##### INPUT CREATION #####
-    x = torch.Tensor(1, list_nodes_final[0].ch_in * list_nodes_final[0].group, list_nodes_final[0].input_dim[0], list_nodes_final[0].input_dim[1]).uniform_(0, (2**(list_nodes_final[0].input_activation_bits + 1)))
-    x[x > (2**list_nodes_final[0].input_activation_bits - 1)] = 0
-    x = torch.round(x)
-    x_save = copy.deepcopy(x)
-    x_save = x_save.permute(0,2,3,1).flatten()
-    Input_compressed = []
-    z = 0
-    Loop_over = copy.deepcopy(x_save)
-    for _, i_x in enumerate(Loop_over):
-        if (z % int(8 / list_nodes_final[0].input_activation_bits)) == 0:
-            Input_compressed.append(int(i_x.item()))
-        else:
-            Input_compressed[-1] += int(i_x.item()) << (list_nodes_final[0].input_activation_bits * (z % int(8 / list_nodes_final[0].input_activation_bits)))
-        z += 1
-    x_save = np.concatenate((np.asarray([0]), np.asarray(Input_compressed)), axis = 0)
-    np.savetxt(args.network_dir + 'input.txt', x_save, delimiter=',')
 
-    #### GENERATION OF INTERMEDIATE DATA ####
-    for i, node in enumerate(list_nodes_final):
-        net = nn.Sequential(nn.Conv2d(list_nodes_final[i].ch_in * list_nodes_final[i].group, list_nodes_final[i].ch_out, kernel_size=(list_nodes_final[i].kernel_shape[0],list_nodes_final[i].kernel_shape[1]), stride=list_nodes_final[i].strides, padding=list_nodes_final[i].pads[0], groups=list_nodes_final[i].group, bias=False))
-        net[0].weight.data.random_(-(2**(list_nodes_final[i].weight_bits - 1)), (2**(list_nodes_final[i].weight_bits - 1)))
-        # if i == len(list_nodes_final) - 1:
-        #     x = x.reshape(1, list_nodes_final[i].ch_in, 1, 1)
-        y = net(x)
-        y = y.permute(0,2,3,1)
-        y_shift = y.detach().numpy()
-        list_nodes_final[i].outshift = 0 # don't touch
-        shift_index = 1
-        while True:
-            list_nodes_final[i].outshift = 0 # don't touch
-            y_shift = y.detach().numpy()
-            while True and list_nodes_final[i].outshift < 10:
-                if float(sum(sum(sum(sum(np.logical_and(y_shift>0, y_shift<(2**list_nodes_final[i].out_activation_bits-1))))))) < len(y_shift.flatten())/(6.0*shift_index):
-                    list_nodes_final[i].outshift+=1
-                else:
-                    break
-                y_shift = (y_shift / 2).astype('int')
-            if list_nodes_final[i].outshift < 10:
-                break
-            else: 
-                shift_index += 1
-            if shift_index == 10:
-                break
-        y = clip8(y.detach().numpy(), list_nodes_final[i].out_activation_bits, list_nodes_final[i].outshift)
-        y_new = copy.deepcopy(y)
-        y = np.concatenate((np.asarray([0]), y.flatten()), axis = 0) 
-        x = torch.tensor(y_new).permute(0,3,1,2).float()
-        np.savetxt(args.network_dir + f'out_layer{i}.txt', y, delimiter=',')
-        list_nodes_final[i].weights = net[0].weight.data.permute(0,2,3,1).numpy()
-        list_nodes_final[i].weights_raw = net[0].weight.data.permute(0,2,3,1).numpy()
+    DORY_Graph = create_graph(json_configuration_file, network_dir)
 
-    if args.backend == 'MCU':
-        sys.path.append('../NN_Deployment/MCU/')
-        from Model_deployment_MCU import Model_deployment_MCU as model_deploy
-        type_data = 'char'
-    elif args.backend == 'Occamy':
-        sys.path.append('../NN_Deployment/Occamy/')
-        from Model_deployment_Occamy import Model_deployment_Occamy as model_deploy
-        type_data = 'float'
+    # Including and running the transformation from DORY IR to DORY HW IR
+    onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.HW_Parser')
+    DORY_to_DORY_HW = onnx_manager.onnx_manager
+    DORY_Graph = DORY_to_DORY_HW(DORY_Graph, json_configuration_file, json_configuration_file_root).full_graph_parsing()
 
-    model_deploy('GAP8', args.chip).print_model_network(list_nodes_final,
-                            100,
-                            args.network_dir,
-                            100,
-                            args.verbose_level,
-                            args.perf_layer,
-                            args.l1_buffer_size,
-                            args.master_stack,
-                            args.slave_stack,
-                            args.l2_buffer_size,
-                            args.fc_frequency,
-                            args.cl_frequency,
-                            args.Bn_Relu_Bits, 
-                            args.sdk,
-                            args.backend,
-                            args.dma_parallelization,
-                            args.number_of_clusters,
-                            args.optional,
-                            type_data = type_data)
-if __name__ == '__main__':
-    ##############################################
-    ###### INPUT PARAMETERS TO DEFINE ############
-    ##############################################
-    kernel_shape = [3,3]
-    ch_in = 64
-    ch_out = 64
-    DW = 0
-    stride = 1
-    pads = [1,1,1,1]
-    input_dim = [32,32]
-    output_dim = [32, 32]
-    # kernel_shape = [1,1]
-    # ch_in = 1024
-    # ch_out = 64
-    # DW = 0
-    # stride = 1
-    # pads = [0,0,0,0]
-    # input_dim = [1,1]
-    # output_dim = [1, 1]
-    W_BITS = 8; IN_BITS = 8; OUT_BITS = 8;
-    ##############################################
-    ##########DON'T TOUCH AFTER###################
-    ##############################################
-
-    list_nodes = []
-    new_node = add_node(
-        kernel_shape,
-        ch_in,
-        ch_out,
-        DW,
-        stride,
-        pads,
-        input_dim,
-        output_dim,
-        W_BITS, IN_BITS, OUT_BITS)
-    list_nodes.append(new_node) 
-
-    main(list_nodes)
+    # Deployment of the model on the target architecture
+    onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.C_Parser')
+    DORY_HW_to_C = onnx_manager.C_Parser
+    DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file, json_configuration_file_root,
+                              args.verbose_level, args.perf_layer, args.optional, args.app_dir).full_graph_parsing()
