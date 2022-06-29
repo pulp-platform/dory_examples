@@ -183,7 +183,7 @@ def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
 
 def create_input(node):
     low, high = borders(node.input_activation_bits, node.input_activation_type == 'int')
-    size = (1, node.input_channels * node.group, node.input_dimensions[0], node.input_dimensions[1])
+    size = (1, node.input_channels, node.input_dimensions[0], node.input_dimensions[1])
     return torch.randint(low=low, high=high, size=size)
 
 
