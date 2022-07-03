@@ -204,7 +204,7 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, hardware_target, i
 
     w = weight if weight is not None else create_weight(layer_node)
 
-    if hardware_target == 'nnx':
+    if 'ne16' in hardware_target:
         w_offset, _ = borders(layer_node.weight_bits, signed=True)
     else:
         w_offset = 0
@@ -291,7 +291,7 @@ def layer_generate(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"],
+    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx.ne16", "nnx.neureka", "Occamy", "Diana"],
                         help='Hardware platform for which the code is optimized')
     parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str,
                         help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
