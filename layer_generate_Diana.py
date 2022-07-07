@@ -44,7 +44,7 @@ def std(bits):
     return 2**(bits-1)
 
 
-def create_dory_node(params):
+def create_dory_node(params, index, index_out):
     node = DORY_node()
     node.branch_out = 0
     node.branch_in = 0
@@ -71,8 +71,8 @@ def create_dory_node(params):
 
     # Ids of previous nodes, node can have multiple input nodes
     node.number_of_input_nodes = 1
-    node.input_indexes = ['1']  # layer_node is the input
-    node.output_index = '2'
+    node.input_indexes = [str(index)]  # '0' is the network input
+    node.output_index = str(index_out)
     # Constants: weights, bias, k, lambda
     node.number_of_input_constants = 4
 
@@ -80,12 +80,12 @@ def create_dory_node(params):
 
 
 def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
-    h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
-    w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
+    h = np.floor((input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1)
+    w = np.floor((input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1)
     return [int(h), int(w)]
 
 
-def create_layer_node(params):
+def create_layer_conv(params, index, index_out):
     node = Layer_node()
     node.name = params['layer_type']
     node.op_type = params['operation_type']  # TODO might be redundant
@@ -108,18 +108,103 @@ def create_layer_node(params):
     node.weight_type = 'int'
     node.weight_bits = params['weight_bits']
     node.bias_bits = params['bias_bits']
+    node.branch_in = params['branch_in']
+    node.branch_out = params['branch_out']
+    node.branch_change = params['branch_change']
     node.weight_memory = None
     node.MACs = node.output_dimensions[0] * node.output_dimensions[1] * node.output_channels \
                 * node.kernel_shape[1] * node.kernel_shape[0] * node.input_channels
 
     # Ids of previous nodes, node can have multiple input nodes
     node.number_of_input_nodes = 1
-    node.input_indexes = ['0']  # '0' is the network input
-    node.output_index = '1'
+    node.input_indexes = [str(index)]  # '0' is the network input
+    node.output_index = str(index_out)
     # Constants: weights
     node.number_of_input_constants = 1
     return node
 
+def create_layer_add(params, index_1, index_2, index_out):
+    node = Layer_node()
+    node.name = params['layer_type']
+    node.op_type = params['operation_type']  # TODO might be redundant
+    node.pads = params['padding']
+    node.group = params['group']
+    node.strides = params['stride']
+    node.kernel_shape = params['kernel_shape']
+    node.input_dimensions = params['input_dimensions']
+    node.output_dimensions = params['input_dimensions']
+    node.input_channels = params['input_channels']
+    node.output_channels = params['output_channels']
+    node.output_activation_type = params['output_type']
+    node.output_activation_bits = params['intermediate_bits']
+    node.input_activation_type = params['input_type']
+    node.input_activation_bits = params['input_bits']
+    node.constant_names = []
+    node.constant_names.append('inmul1')
+    node.inmul1 = {
+        'value': 1,
+        'layout': ''
+    }
+    node.constant_names.append('inadd1')
+    node.inadd1 = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_names.append('inshift1')
+    node.inshift1 = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_names.append('inmul2')
+    node.inmul2 = {
+        'value': 1,
+        'layout': ''
+    }
+    node.constant_names.append('inadd2')
+    node.inadd2 = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_names.append('inshift2')
+    node.inshift2 = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_names.append('outmul')
+    node.outmul = {
+        'value': 1,
+        'layout': ''
+    }
+    node.constant_names.append('outadd')
+    node.outadd = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_names.append('outshift')
+    node.outshift = {
+        'value': 0,
+        'layout': ''
+    }
+    node.constant_type = 'int'
+    node.constants_memory = None
+    node.constant_bits = None
+    node.weight_type = 'int'
+    node.weight_bits = params['weight_bits']
+    node.bias_bits = params['bias_bits']
+    node.branch_in = params['branch_in']
+    node.branch_out = params['branch_out']
+    node.branch_change = params['branch_change']
+    node.weight_memory = None
+    node.MACs = node.output_dimensions[0] * node.output_dimensions[1] * node.output_channels \
+                * node.kernel_shape[1] * node.kernel_shape[0] * node.input_channels
+
+    # Ids of previous nodes, node can have multiple input nodes
+    node.number_of_input_nodes = 1
+    node.input_indexes = [str(index_1), str(index_2)]  # '0' is the network input
+    node.output_index = str(index_out)
+    # Constants: weights
+    node.number_of_input_constants = 1
+    return node
 
 def clip(x, bits, signed=False):
     low, high = borders(bits, signed)
@@ -205,10 +290,11 @@ def create_bias(node):
     # return torch.randint(low=low, high=high, size=size).flatten()
     return torch.randint(low=0, high=1, size=size).flatten()
 
-def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight=None, batchnorm_params=None):
+def create_conv(i_layer, layer_node, dory_node, network_dir, input=None, weight=None, batchnorm_params=None):
     x = input if input is not None else create_input(layer_node)
     x_save = x.flatten()
-    np.savetxt(os.path.join(network_dir, 'input.txt'), x_save, delimiter=',', fmt='%d')
+    if input is None:
+        np.savetxt(os.path.join(network_dir, 'input.txt'), x_save, delimiter=',', fmt='%d')
 
     w = weight if weight is not None else create_weight(layer_node)
     layer_node.constant_names.append('weights')
@@ -224,10 +310,8 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
     }
 
     y = F.conv2d(input=x, weight=w, bias=b, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
-
     y_type = torch.int32
     y = y.type(y_type)
-
     y_signed = layer_node.output_activation_type == 'int'
 
     dory_node.constant_names.append('outmul')
@@ -243,7 +327,8 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
     }
     y = y >> dory_node.outshift['value']
     y = clip(y, dory_node.output_activation_bits, y_signed)
-    y_save = y.flatten()
+
+    y_save = copy.deepcopy(y.flatten())
     y_save = y_save.reshape(int(y_save.shape[0]/4), 4)
     y_save1 = copy.deepcopy(y_save)
     y_save[:,0] = y_save1[:,3] 
@@ -255,15 +340,60 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
     return y
 
 
-def create_graph(params, network_dir):
-    layer_node = create_layer_node(params)
+def create_add(i_layer, layer_node, network_dir, input1, input2):
 
-    dory_node = create_dory_node(params)
+    y = input1 + input2
+    y_type = torch.int32
+    y = y.type(y_type)
+    y_signed = layer_node.output_activation_type == 'int'
 
-    with torch.no_grad():
-        create_layer(0, layer_node, dory_node, network_dir)
 
-    return [layer_node, dory_node]
+    y = clip(y, layer_node.output_activation_bits, y_signed)
+
+    y_save = copy.deepcopy(y.flatten())
+    y_save = y_save.reshape(int(y_save.shape[0]/4), 4)
+    y_save1 = copy.deepcopy(y_save)
+    y_save[:,0] = y_save1[:,3] 
+    y_save[:,1] = y_save1[:,2] 
+    y_save[:,2] = y_save1[:,1] 
+    y_save[:,3] = y_save1[:,0] 
+    y_save = y_save.flatten().numpy()
+    np.savetxt(os.path.join(network_dir, f'out_layer{i_layer}.txt'), y_save, delimiter=',', fmt='%d')
+    return y
+
+
+
+def create_graph(params, network_dir,number_of_nodes):
+    layers = []
+    index_layer = 0
+    for index in np.arange(number_of_nodes):
+        if params[index]['layer_type'] == "Convolution":
+            layer_node  = create_layer_conv(params[index], index_layer, index_layer + 1)
+            index_layer += 1
+            dory_node   = create_dory_node(params[index], index_layer, index_layer + 1)
+            index_layer += 1
+            if params[index]['branch_out'] == 1:
+                index_branch = index_layer
+            with torch.no_grad():
+                if index == 0:
+                    y = create_conv(index, layer_node, dory_node, network_dir)
+                else:
+                    y = create_conv(index, layer_node, dory_node, network_dir, input = y.type(torch.long))
+            if params[index]['branch_out'] == 1:
+                y_branch = y
+            layers.append(layer_node)
+            layers.append(dory_node)
+        elif params[index]['layer_type'] == "Addition":
+            layer_node  = create_layer_add(params[index], index_branch, index_layer, index_layer + 1)
+            index_layer += 1
+            with torch.no_grad():
+                y = create_add(index, layer_node, network_dir, input1 = y.type(torch.long), input2 = y_branch.type(torch.long))
+            if params[index]['branch_out'] == 1:
+                y_branch = y
+            layers.append(layer_node)
+
+    return layers
+    # return [layer_node, dory_node]
 
 
 if __name__ == '__main__':
@@ -282,24 +412,26 @@ if __name__ == '__main__':
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    json_configuration_file_root = os.path.dirname(args.config_file)
-    with open(args.config_file, 'r') as f:
-        json_configuration_file = json.load(f)
+    number_of_nodes = 4
+    json_configuration_file = []
+    for i in np.arange(number_of_nodes):
+        json_configuration_file_root = os.path.dirname((str(i)+'.').join((args.config_file).split('.')))
+        with open((str(i)+'.').join((args.config_file).split('.')), 'r') as f:
+            json_configuration_file.append(json.load(f)) 
 
-    network_dir = os.path.join(json_configuration_file_root, os.path.dirname(json_configuration_file['onnx_file']))
+    network_dir = os.path.join(json_configuration_file_root, os.path.dirname(json_configuration_file[0]['onnx_file']))
     os.makedirs(network_dir, exist_ok=True)
 
     torch.manual_seed(0)
 
-    DORY_Graph = create_graph(json_configuration_file, network_dir)
-
+    DORY_Graph = create_graph(json_configuration_file, network_dir, number_of_nodes)
     # Including and running the transformation from DORY IR to DORY HW IR
     onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.HW_Parser')
     DORY_to_DORY_HW = onnx_manager.onnx_manager
-    DORY_Graph = DORY_to_DORY_HW(DORY_Graph, json_configuration_file, json_configuration_file_root).full_graph_parsing()
+    DORY_Graph = DORY_to_DORY_HW(DORY_Graph, json_configuration_file[0], json_configuration_file_root).full_graph_parsing()
 
     # Deployment of the model on the target architecture
     onnx_manager = importlib.import_module(f'Hardware-targets.{args.hardware_target}.C_Parser')
     DORY_HW_to_C = onnx_manager.C_Parser
-    DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file, json_configuration_file_root,
+    DORY_Graph = DORY_HW_to_C(DORY_Graph, json_configuration_file[0], json_configuration_file_root,
                               args.verbose_level, args.perf_layer, args.optional, args.app_dir).full_graph_parsing()

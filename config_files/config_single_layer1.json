@@ -18,5 +18,8 @@
   "weight_bits": 8,
   "bias_bits": 32,
   "intermediate_bits": 32,
+  "branch_in": 0,
+  "branch_out": 0,
+  "branch_change": 0,
   "batchnorm": false
 }

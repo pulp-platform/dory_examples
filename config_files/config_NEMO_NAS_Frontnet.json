@@ -1,0 +1,5 @@
+{
+	"BNRelu_bits": 64,
+	"onnx_file": "../examples/Nemo_examples/8-bits-2D/NAS_Frontnet/Frontnet.onnx",
+	"code reserved space": 132000
+}
