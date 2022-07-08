@@ -136,7 +136,7 @@ def create_layer_add(params, index_1, index_2, index_out):
     node.input_channels = params['input_channels']
     node.output_channels = params['output_channels']
     node.output_activation_type = params['output_type']
-    node.output_activation_bits = params['intermediate_bits']
+    node.output_activation_bits = 8
     node.input_activation_type = params['input_type']
     node.input_activation_bits = params['input_bits']
     node.constant_names = []
