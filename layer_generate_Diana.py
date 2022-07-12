@@ -386,6 +386,8 @@ def create_graph(params, network_dir,number_of_nodes):
         elif params[index]['layer_type'] == "Addition":
             layer_node  = create_layer_add(params[index], index_branch, index_layer, index_layer + 1)
             index_layer += 1
+            if params[index]['branch_out'] == 1:
+                index_branch = index_layer
             with torch.no_grad():
                 y = create_add(index, layer_node, network_dir, input1 = y.type(torch.long), input2 = y_branch.type(torch.long))
             if params[index]['branch_out'] == 1:
@@ -412,7 +414,7 @@ if __name__ == '__main__':
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    number_of_nodes = 4
+    number_of_nodes = 10
     json_configuration_file = []
     for i in np.arange(number_of_nodes):
         json_configuration_file_root = os.path.dirname((str(i)+'.').join((args.config_file).split('.')))
