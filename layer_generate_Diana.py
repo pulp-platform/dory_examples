@@ -368,12 +368,17 @@ def create_graph(params, network_dir,number_of_nodes):
     index_layer = 0
     for index in np.arange(number_of_nodes):
         if params[index]['layer_type'] == "Convolution":
-            layer_node  = create_layer_conv(params[index], index_layer, index_layer + 1)
+            increment = index_layer + 1
+            if index > 0:
+                if params[index-1]['branch_change'] == 1:
+                    increment = index_branch+1
+            layer_node  = create_layer_conv(params[index], index_layer, increment)
+            if index > 0:
+                if params[index-1]['branch_change'] == 1:
+                    index_layer = index_branch
             index_layer += 1
             dory_node   = create_dory_node(params[index], index_layer, index_layer + 1)
             index_layer += 1
-            if params[index]['branch_out'] == 1:
-                index_branch = index_layer
             with torch.no_grad():
                 if index == 0:
                     y = create_conv(index, layer_node, dory_node, network_dir)
@@ -381,6 +386,14 @@ def create_graph(params, network_dir,number_of_nodes):
                     y = create_conv(index, layer_node, dory_node, network_dir, input = y.type(torch.long))
             if params[index]['branch_out'] == 1:
                 y_branch = y
+                index_branch = index_layer
+            if params[index]['branch_change'] == 1:
+                y_new = y_branch
+                y_branch = y
+                y = y_new
+                index_new = index_branch
+                index_branch = index_layer
+                index_layer = index_new
             layers.append(layer_node)
             layers.append(dory_node)
         elif params[index]['layer_type'] == "Addition":
@@ -406,15 +419,15 @@ if __name__ == '__main__':
                         help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
     parser.add_argument('--app_dir', default='./application',
                         help='Path to the generated application. Default: ./application')
-    parser.add_argument('--perf_layer', default='Yes', help='Yes: MAC/cycles per layer. No: No perf per layer.')
-    parser.add_argument('--verbose_level', default='Check_all+Perf_final',
+    parser.add_argument('--perf_layer', default='No', help='Yes: MAC/cycles per layer. No: No perf per layer.')
+    parser.add_argument('--verbose_level', default='None',
                         help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
     parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
     parser.add_argument('--optional', default='mixed-sw',
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    number_of_nodes = 10
+    number_of_nodes = 20
     json_configuration_file = []
     for i in np.arange(number_of_nodes):
         json_configuration_file_root = os.path.dirname((str(i)+'.').join((args.config_file).split('.')))
