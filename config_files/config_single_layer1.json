@@ -15,7 +15,7 @@
   "group": 1,
   "padding": [1, 1, 1, 1],
   "stride": [1, 1],
-  "weight_bits": 8,
+  "weight_bits": 2,
   "bias_bits": 32,
   "intermediate_bits": 32,
   "branch_in": 0,

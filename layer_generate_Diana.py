@@ -423,11 +423,11 @@ if __name__ == '__main__':
     parser.add_argument('--verbose_level', default='None',
                         help="None: No_printf.\nPerf_final: only total performance\nCheck_all+Perf_final: all check + final performances \nLast+Perf_final: all check + final performances \nExtract the parameters from the onnx model")
     parser.add_argument('--backend', default='MCU', help='MCU or Occamy')
-    parser.add_argument('--optional', default='mixed-sw',
+    parser.add_argument('--optional', default='auto',
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    number_of_nodes = 20
+    number_of_nodes = 2
     json_configuration_file = []
     for i in np.arange(number_of_nodes):
         json_configuration_file_root = os.path.dirname((str(i)+'.').join((args.config_file).split('.')))
