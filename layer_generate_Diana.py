@@ -427,7 +427,7 @@ if __name__ == '__main__':
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     args = parser.parse_args()
 
-    number_of_nodes = 2
+    number_of_nodes = 1
     json_configuration_file = []
     for i in np.arange(number_of_nodes):
         json_configuration_file_root = os.path.dirname((str(i)+'.').join((args.config_file).split('.')))
