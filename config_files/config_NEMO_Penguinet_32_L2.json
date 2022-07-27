@@ -1,0 +1,5 @@
+{
+	"BNRelu_bits": 32,
+	"onnx_file": "../examples/Nemo_examples/8-bits-2D/PenguiNet_32/model_int.onnx",
+	"code reserved space": 352000
+}
