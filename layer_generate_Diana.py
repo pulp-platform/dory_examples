@@ -418,7 +418,7 @@ def create_graph(params, network_dir,number_of_nodes):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx", "Occamy", "Diana"],
+    parser.add_argument('hardware_target', type=str, choices=["Diana.Diana_SoC", "Diana.Diana_TVM"],
                         help='Hardware platform for which the code is optimized')
     parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str,
                         help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
