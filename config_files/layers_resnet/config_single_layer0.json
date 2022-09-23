@@ -4,7 +4,7 @@
   "BNRelu_bits": 32,
   "onnx_file": "../examples/layer_test/nonexistent.onnx",
   "code reserved space": 312000,
-  "input_channels": 16,
+  "input_channels": 3,
   "output_channels": 16,
   "kernel_shape": [3, 3],
   "input_dimensions": [32, 32],
