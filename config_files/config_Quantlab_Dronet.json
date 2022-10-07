@@ -1,5 +1,7 @@
 {
 	"BNRelu_bits": 64,
 	"onnx_file": "../examples/Quantlab_examples/Dronet/DRONETV3_ql_integerized.onnx",
-	"code reserved space": 92000
+	"code reserved space": 92000,
+  "input_bits": 8,
+  "input_signed": false
 }

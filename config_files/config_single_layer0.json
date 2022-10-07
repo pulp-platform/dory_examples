@@ -7,7 +7,11 @@
   "input_channels": 16,
   "output_channels": 16,
   "kernel_shape": [3, 3],
+<<<<<<< HEAD
   "input_dimensions": [32, 32],
+=======
+  "input_dimensions": [8, 8],
+>>>>>>> c04fd523f7051ccf97f625466a63668b52132ac4
   "input_bits": 8,
   "input_type": "int",
   "output_bits": 8,
