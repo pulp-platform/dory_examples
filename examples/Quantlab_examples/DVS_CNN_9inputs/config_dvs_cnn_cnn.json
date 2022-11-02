@@ -1,0 +1,8 @@
+{
+    "BNRelu_bits": 32,
+    "onnx_file": "/home/georgr/projects/mixed-precision-inference/ql-pact/examples/fx_integerization/dvs_net_export_test_walign/cnn/dvs_cnn_cnn_ql_integerized.onnx",
+    "code reserved space": 310000,
+    "n_inputs": 9,
+    "input_bits": 2,
+    "input_signed": true
+}

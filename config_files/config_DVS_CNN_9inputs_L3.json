@@ -1,0 +1,8 @@
+{
+    "BNRelu_bits": 32,
+    "onnx_file": "../examples/Quantlab_examples/DVS_CNN_9inputs/dvs_cnn_cnn_ql_integerized.onnx",
+    "code reserved space": 90000,
+    "n_inputs": 9,
+    "input_bits": 2,
+    "input_signed": true
+}
