@@ -1,5 +1,5 @@
 {
 	"BNRelu_bits": 32,
 	"onnx_file": "../examples/Nemo_examples/8-bits-2D/dronet_complete/model_int.onnx",
-	"code reserved space": 92000
+	"code reserved space": 95000
 }
