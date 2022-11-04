@@ -3,7 +3,7 @@
   "operation_type": "Conv",
   "BNRelu_bits": 32,
   "onnx_file": "../examples/layer_test/nonexistent.onnx",
-  "code reserved space": 312000,
+  "code reserved space": 412000,
   "input_channels": 128,
   "output_channels": 512,
   "kernel_shape": [3, 3],
