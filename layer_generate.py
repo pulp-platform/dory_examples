@@ -61,7 +61,7 @@ def create_dory_node(params):
     node.name = name
     node.op_type = name
     node.layout = 'CHW'
-    node.bias_bits = 32
+    node.bias_bits = None
 
     # constant -> bn and relu
     node.constant_type = 'int'
@@ -94,16 +94,17 @@ def create_layer_node(params):
     node.strides = params['stride']
     node.kernel_shape = params['kernel_shape']
     node.input_dimensions = params['input_dimensions']
+    node.bias_bits = 32
 
     def calculate_output_dimensions(input_dimensions, kernel_shape, stride, padding):
-        h = (input_dimensions[0] + padding[0] + padding[1] - kernel_shape[0]) / stride[0] + 1
-        w = (input_dimensions[1] + padding[2] + padding[3] - kernel_shape[1]) / stride[1] + 1
+        h = (input_dimensions[0] + padding[0] + padding[2] - kernel_shape[0]) / stride[0] + 1
+        w = (input_dimensions[1] + padding[1] + padding[3] - kernel_shape[1]) / stride[1] + 1
         return [int(h), int(w)]
 
     node.output_dimensions = calculate_output_dimensions(node.input_dimensions, node.kernel_shape, node.strides, node.pads)
     node.input_channels = params['input_channels']
     node.output_channels = params['output_channels']
-    node.output_activation_type = params['output_type']
+    node.output_activation_type = None
     node.output_activation_bits = params['intermediate_bits']
     node.input_activation_type = params['input_type']
     node.input_activation_bits = params['input_bits']
@@ -149,7 +150,7 @@ def batchnorm(x, scale, bias):
     return scale * x + bias
 
 
-def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
+def calculate_batchnorm_params(x, output_bits, normalization_bits, bias_bits, signed):
     """
     Calculate batchnorm
 
@@ -171,12 +172,12 @@ def calculate_batchnorm_params(x, output_bits, constant_bits, signed):
     scale[s.isnan()] = 1
     scale[torch.logical_not(s.isnan())] = desired_std / s[torch.logical_not(s.isnan())]
     scale = scale.round()
-    scale = clip(scale, constant_bits)
+    scale = clip(scale, normalization_bits)
     scale[scale == 0] = 1
 
     bias = scale * (desired_mean - m)
     bias = bias.round()
-    bias = clip(bias, constant_bits, signed=True)
+    bias = clip(bias, bias_bits, signed=True)
 
     return scale.type(torch.int64), bias.type(torch.int64)
 
@@ -202,9 +203,13 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, hardware_target, i
 
     save(x, 'input.txt')
 
+    dory_padding = layer_node.pads  # Top, Left, Bottom, Right
+    torch_padding = (dory_padding[1], dory_padding[3], dory_padding[0], dory_padding[2])  # Left, Right, Top, Bottom
+    x = F.pad(x, torch_padding)
+
     w = weight if weight is not None else create_weight(layer_node)
 
-    if 'ne16' in hardware_target:
+    if 'ne16' or 'neureka' or 'gap9' in hardware_target:
         w_offset, _ = borders(layer_node.weight_bits, signed=True)
     else:
         w_offset = 0
@@ -215,7 +220,7 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, hardware_target, i
         'layout': 'CoutCinK'
     }
 
-    y = F.conv2d(input=x, weight=w, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
+    y = F.conv2d(input=x, weight=w, stride=layer_node.strides, groups=layer_node.group)
 
     if layer_node.output_activation_bits == 64:
         y_type = torch.int64
@@ -234,7 +239,7 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, hardware_target, i
         if batchnorm_params is not None:
             k, l = batchnorm_params
         else:
-            k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits, y_signed)
+            k, l = calculate_batchnorm_params(y, dory_node.output_activation_bits, dory_node.constant_bits, layer_node.bias_bits, y_signed)
         dory_node.constant_names.append('k')
         dory_node.k = {'value': k.type(torch.float).numpy(), 'layout': ''}
         dory_node.constant_names.append('l')
@@ -291,7 +296,7 @@ def layer_generate(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('hardware_target', type=str, choices=["GAP8", "nnx.ne16", "nnx.neureka", "Occamy", "Diana"],
+    parser.add_argument('hardware_target', type=str, choices=["GAP8.GAP8_gvsoc", "GAP8.GAP8_board", "nnx.ne16", "nnx.neureka", "nnx.gap9", "Occamy", "Diana"],
                         help='Hardware platform for which the code is optimized')
     parser.add_argument('--config_file', default='config_files/config_single_layer.json', type=str,
                         help='Path to the JSON file that specifies the ONNX file of the network and other information. Default: config_files/config_single_layer.json')
