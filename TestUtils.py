@@ -57,11 +57,33 @@ def filter_dims_smaller_then_mem(dimslist, mem):
     return [dims for dims in dimslist if dims_size(dims) <= mem]
 
 
-def execute_layer(env, timeout=30, app_cflags=None):
+def execute_layer(name, env, timeout=30, app_cflags=None):
     cmd = ['make', '-C', 'application', 'clean', 'all', 'run']
     if app_cflags is not None and isinstance(app_cflags, list):
         env['APP_CFLAGS'] = ' '.join(app_cflags)
-    h_line = '\n' + '-' * shutil.get_terminal_size().columns + '\n'
+
+    def exception_output(exception, name, msg):
+        stdout = exception.stdout
+        try:
+            stdout = stdout.decode('ascii')
+        except (UnicodeDecodeError, AttributeError):
+            pass
+
+        stderr = exception.stderr
+        try:
+            stderr = stderr.decode('ascii')
+        except (UnicodeDecodeError, AttributeError):
+            pass
+
+        h_line = '\n' + '-' * 100 + '\n'
+        return f"Layer {name}: {msg}\n" \
+               f"  - command: {' '.join(cmd)}\n" + \
+               h_line +                            \
+               f"\nCaptured stdout:\n{stdout}\n" + \
+               h_line +                            \
+               f"\nCaptured stderr:\n{stderr}\n" + \
+               h_line
+
     output = None
     status = None
 
@@ -74,38 +96,10 @@ def execute_layer(env, timeout=30, app_cflags=None):
             pass
         status = True
     except subprocess.CalledProcessError as e:
-        stdout = e.stdout
-        try:
-            stdout = stdout.decode('ascii')
-        except (UnicodeDecodeError, AttributeError):
-            pass
-
-        stderr = e.stderr
-        try:
-            stderr = stderr.decode('ascii')
-        except (UnicodeDecodeError, AttributeError):
-            pass
-
-        output = f"Building application failed with exit status {e.returncode}\n" + h_line \
-                 + f"\nCaptured stdout:\n{stdout}\n" + h_line \
-                 + f"\nCaptured stderr:\n{stderr}\n" + h_line
+        output = exception_output(e, name, f"build failure with exit status {e.returncode}")
         status = False
     except subprocess.TimeoutExpired as e:
-        stdout = e.stdout
-        try:
-            stdout = stdout.decode('ascii')
-        except (UnicodeDecodeError, AttributeError):
-            pass
-
-        stderr = e.stderr
-        try:
-            stderr = stderr.decode('ascii')
-        except (UnicodeDecodeError, AttributeError):
-            pass
-
-        output = f"The execution timed out.\n" + h_line \
-                 + f"\nCaptured stdout:\n{stdout}\n" + h_line \
-                 + f"\nCaptured stderr:\n{stderr}\n" + h_line
+        output = exception_output(e, name, f"timeout after {timeout}s")
         status = False
 
     return (status, output)

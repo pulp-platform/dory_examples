@@ -16,7 +16,7 @@ current_time = datetime.datetime.now().strftime("%Y_%m_%d-%H_%M")
 measurements_dir = 'measurements'
 
 
-def measure_perf(name, dimslist, target, csv_filename, component, dma_confs):
+def measure_perf(name, dimslist, target, csv_filename, component, dma_confs, defines):
     path = os.path.join(measurements_dir, target, name)
     logpath = os.path.join(path, 'log')
     os.makedirs(logpath, exist_ok=True)
@@ -24,6 +24,8 @@ def measure_perf(name, dimslist, target, csv_filename, component, dma_confs):
     with open(csv_filepath, 'w') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(csv_header_components if component else csv_header)
+
+    app_cflags = ['-D' + define for define in defines]
 
     modes = ['original']
     if dma_confs:
@@ -40,13 +42,12 @@ def measure_perf(name, dimslist, target, csv_filename, component, dma_confs):
         sys.stdout = tmp_stdout
 
         for mode in modes:
-            app_cflags = []
             if component:
                 app_cflags.append('-DMEASURE_LAYER_COMPONENT_PERF')
             if mode != 'original':
                 app_cflags.append('-D' + mode.upper())
 
-            passed, output = execute_layer(local_env(target), timeout=240, app_cflags=app_cflags)
+            passed, output = execute_layer(f'{dims}', local_env(target), timeout=240, app_cflags=app_cflags)
             if not passed:
                 logfile = f'{current_time}-{dims[0]}_{dims[1]}_{dims[2]}_{dims[3]}_{dims[4]}_{dims[5]}_{dims[6]}' \
                           f'_{dims[7]}-{mode}{"-comp" if component else ""}.log'
@@ -56,11 +57,13 @@ def measure_perf(name, dimslist, target, csv_filename, component, dma_confs):
                 continue
             regex = regex_perf_components if component else regex_perf
             match = regex.search(output)
+            match_pass = regex_checksum.search(output)
             if match is None:
                 print(f'ERROR: Didn\'t match the perf regular expression.\n'
                       f'Received output:\n{output}')
                 continue
             row = [
+                match_pass is not None and match_pass.group(1) == 'Checksum OK',
                 mode,
                 conf['input_dimensions'][0],
                 conf['input_dimensions'][1],
@@ -91,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--group', type=str)
     parser.add_argument('--measure-dma-configurations', dest='dma_confs', action='store_true', default=False)
     parser.add_argument('--measure-components', dest='component', action='store_true', default=False)
+    parser.add_argument('--defines', '-d', nargs='+', default=[])
     args = parser.parse_args()
 
     csv_filename_default = f'{current_time}{"-comp" if args.component else ""}.csv'
@@ -100,8 +104,9 @@ if __name__ == '__main__':
     dimslist = []
     dimslist += MobileNetV1_dimslist(128)
     #dimslist += ResNetTinyML_dimslist()
+    dimslist = [dim for dim in dimslist if dim[-1] == 2]
     group = args.group if args.group is not None else "mnV1-128"
 
     print(f"Measuring {group}:")
 
-    measure_perf(group, dimslist, args.target, output, args.component, args.dma_confs)
+    measure_perf(group, dimslist, args.target, output, args.component, args.dma_confs, args.defines)
