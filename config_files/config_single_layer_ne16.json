@@ -1,0 +1,21 @@
+{
+  "layer_type": "Convolution",
+  "operation_type": "Conv",
+  "BNRelu_bits": 32,
+  "onnx_file": "../examples/layer_test/nonexistent.onnx",
+  "code reserved space": 152000,
+  "input_channels": 16,
+  "output_channels": 16,
+  "kernel_shape": [1, 1],
+  "input_dimensions": [3, 3],
+  "input_bits": 8,
+  "input_type": "uint",
+  "output_bits": 8,
+  "output_type": "uint",
+  "group": 1,
+  "padding": [0, 0, 0, 0],
+  "stride": [1, 1],
+  "weight_bits": 8,
+  "intermediate_bits": 32,
+  "batchnorm": true
+}
